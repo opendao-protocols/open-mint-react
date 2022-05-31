@@ -1,0 +1,50 @@
+{
+    "bsc": [
+        {
+            "id":"USDC",
+            "address":"0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+        },
+        {
+            "id":"BUSD",
+            "address":"0xe9e7cea3dedca5984780bafc599bd69add087d56"
+        },
+        {
+            "id":"BUSDT",
+            "address":"0x55d398326f99059fF775485246999027B3197955"
+        },
+        {
+            "id":"BDAI",
+            "address":"0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3"
+        },
+        {
+            "id":"WBNB",
+            "address":"0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+        },
+        {
+            "id":"ETH",
+            "address":"0x2170ed0880ac9a755fd29b2688956bd959f933f8"
+        }
+    ],
+    "polygon": [
+        {
+            "id":"USDC",
+            "address":"0x2791bca1f2de4661ed88a30c99a7a9449aa84174"
+        },
+        {
+            "id":"BUSDT",
+            "address":"0xc2132d05d31c914a87c6611c10748aeb04b58e8f"
+        },
+        {
+            "id":"BDAI",
+            "address":"0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
+        },
+        {
+            "id":"WBNB",
+            "address":"0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+        },
+        {
+            "id":"ETH",
+            "address":"0x7ceb23fd6bc0add59e62ac25578270cff1b9f619"
+        }
+    ]
+}
