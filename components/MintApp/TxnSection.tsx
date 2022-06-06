@@ -30,6 +30,18 @@ import //* as
 IVTDemoABI from "./../../public/assets/contracts/IVTDemoABI.json";
 import axios from "axios";
 import { getOmniSteaksApys, getTVL } from "../../lib/hooks";
+import { useContractByAddress } from "../../lib/hooks/contract-hooks";
+import {
+  useCompContract,
+  useComptrollerContract,
+  useCTokenContract,
+  useCTokenContractWithAbiCErc20Delegator,
+  usePriceOracleProxyContract,
+  useTokenContract,
+  useTokenContractWithAbiIVTDemoABI,
+  useWeb3Contract,
+} from "../../contracts/getters";
+import { AuthContext } from "../utils/AuthContext";
 
 declare var window: any;
 
@@ -105,8 +117,32 @@ export const TxnSection: React.FC<Props> = ({}) => {
     setWeb3,
   } = useContext(AppContext);
 
+  const { account } = React.useContext(AuthContext);
+
   const [showPuffCakeVaultContent, setShowPuffCakeVaultContent] =
     useState<boolean>(true);
+
+  //
+  let comptrollerContract = useComptrollerContract(selectedComp);
+  let web3Contract = useWeb3Contract(selectedComp);
+
+  let compContract = useCompContract(compAddress);
+
+  const [oracleAddress, setOracleAddress] = useState<string>("");
+
+  let priceOracleProxyContract = usePriceOracleProxyContract(oracleAddress);
+
+  const [tokenAddress, setTokenAddress] = useState<string>("");
+
+  let TokenContract = useTokenContract(tokenAddress);
+
+  const [cTokenAddress, setCTokenAddress] = useState<string>("");
+
+  let cTokenContract = useCTokenContract(cTokenAddress);
+
+  ////////////////////////////////////////////////////////
+  ///////////////// STATE FUNCTION ///////////////////////
+  ////////////////////////////////////////////////////////
 
   const supplyMax = (i: number, p: number) => {
     let amount = new BigNumber(tokenData[i].tokenBalance);
@@ -241,230 +277,8 @@ export const TxnSection: React.FC<Props> = ({}) => {
     setDataObj(obj);
   };
 
-  const estimateGasPrice = async () => {
-    const obj: {
-      name: string;
-      defaultGasPrice: any;
-      blocksPerYear: number;
-    } = { ...networkData };
-    obj.defaultGasPrice = ethers.utils.parseUnits(
-      blockchainConstants[obj.name].DefaultGasPrice,
-      "gwei"
-    );
-    setNetworkData(obj);
-  };
-
-  const setNetworkVariables = async () => {
-    // const web3 = new ethers.providers.Web3Provider(window["ethereum"]);
-    const network = await web3.getNetwork();
-    let obj = { ...networkData };
-    obj.name = network.name;
-    if (blockchainConstants[obj.name]) {
-      obj.defaultGasPrice = ethers.utils.parseUnits(
-        blockchainConstants[obj.name].DefaultGasPrice,
-        "gwei"
-      );
-      obj.blocksPerYear = blockchainConstants[obj.name].BlocksPerYear;
-    }
-  };
-
-  const enterExitMarket = async (token: any) => {
-    await estimateGasPrice();
-    const addressArray = [];
-    addressArray.push(token.cTokenAddress);
-    let tx;
-    const overrides = {
-      gasPrice: networkData.defaultGasPrice,
-      gasLimit: 300000,
-    };
-    if (token.enabled === true) {
-      tx = await Contracts.Comptroller.exitMarket(
-        token.cTokenAddress,
-        overrides
-      );
-    } else {
-      tx = await Contracts.Comptroller.enterMarkets(addressArray, overrides);
-    }
-
-    // let web3 = new ethers.providers.Web3Provider(window["ethereum"]);
-    await web3.waitForTransaction(tx.hash);
-    // window.location.reload();
-    await setup();
-  };
-
-  const initContract = (contractAddress: string, abi: any) => {
-    // let web3 = new ethers.providers.Web3Provider(window["ethereum"]);
-    return new ethers.Contract(contractAddress, abi, web3.getSigner());
-    // return returnObj;
-  };
-
-  const stake = async (i: any) => {
-    await estimateGasPrice();
-    const tokenAddress = tokenData[i].tokenAddress;
-    const TokenContract = initContract(tokenAddress, ERC20Detailed.abi);
-    const decimals = await TokenContract.decimals();
-    let amountInDec = tokenToDecimals(farmDataObj["stakeInputAmt"], decimals);
-
-    const cTokenAddress = tokenData[i].cTokenAddress;
-    const cTokenContract = initContract(cTokenAddress, CErc20Immutable.abi);
-    const overrides = {
-      gasPrice: networkData.defaultGasPrice,
-      gasLimit: 1000000,
-    };
-    const tx = await cTokenContract.mint(amountInDec, overrides);
-
-    // let web3 = new ethers.providers.Web3Provider(window["ethereum"]);
-    await web3.waitForTransaction(tx.hash);
-
-    if (
-      tokenData[i].collateralFactor !== "0.00" &&
-      tokenData[i].enabled === false
-    ) {
-      await enterExitMarket(tokenData[i]);
-    }
-    setup();
-  };
-
-  const getContractAddresses = async () => {
-    let myContractAddresses: any = {};
-
-    // let web3 = new ethers.providers.Web3Provider(window["ethereum"]);
-    const network = await web3.getNetwork();
-
-    myContractAddresses = blockchainConstants["bsc"];
-    myContractAddresses.Comptroller = selectedComp;
-    setContractAddresses({ name: "Qw" });
-    return myContractAddresses;
-  };
-
-  const initAllContracts = async (contractAddresses: any) => {
-    // this.Contracts = {};
-    let myContracts: any = {};
-
-    let myComptroller: any = Comptroller;
-
-    // setContracts({})
-    console.log(
-      "1!!contractAddresses.Comptroller",
-      contractAddresses.Comptroller
-    );
-    myContracts.Comptroller = initContract(
-      contractAddresses.Comptroller,
-      myComptroller.abi
-    );
-
-    const compAddress = await myContracts.Comptroller.getCompAddress();
-    myContracts.Comp = initContract(compAddress, Comp.abi);
-
-    const oracleAddress = await myContracts.Comptroller.oracle();
-    myContracts.PriceOracleProxy = initContract(
-      oracleAddress,
-      UniswapOracleTWAP.abi
-    );
-
-    setContracts(myContracts);
-  };
-
-  const setup = async () => {
-    const resetState = {
-      totalValueLocked: 0,
-      availabletoBorrowUser: 0,
-      repayMaxAmount: false,
-      bonusApy: true,
-      selectedTokenIndex: 0,
-      totalSupplyBalance: 0,
-      totalBorrowBalance: 0,
-      accountLiquidity: 0,
-      sliderPercentage: 0,
-      roiFactor: 0,
-      compEarned: new BigNumber(0),
-      compBalance: 0,
-    };
-
-    setSetupData(resetState);
-
-    // const mmweb3 = new ethers.providers.Web3Provider(window["ethereum"]);
-
-    const userAddress = await web3.getSigner().getAddress();
-    setCurrentAccount(userAddress);
-
-    await setNetworkVariables();
-
-    // if (this.networkData.name == "polygon") {
-    //   cApp.blockPage({
-    //     overlayColor: "#000000",
-    //     state: "secondary",
-    //     message:
-    //       'Loading App...<br><br><div style="font-size: 0.8rem;">If it is taking too long to load, please try using different rpc urls: <br> <br> <strong>MATIC</strong> <br> 1. https://rpc-mainnet.matic.quiknode.pro <br>2. https://matic-mainnet.chainstacklabs.com</div><br>',
-    //   });
-    // } else {
-    //   cApp.blockPage({
-    //     overlayColor: "#000000",
-    //     state: "secondary",
-    //     message: "Loading App...",
-    //   });
-    // }
-
-    const myContractAddresses = await getContractAddresses();
-
-    if (typeof myContractAddresses === "undefined") {
-      return;
-    }
-
-    const allListedTokens = await fetchAllMarkets();
-    await initAllContracts(myContractAddresses);
-
-    const necessaryMarkets = allListedTokens;
-
-    await estimateGasPrice();
-
-    // In case there are no markets
-    // if (allListedTokens.length === 0) {
-    //   cApp.unblockPage();
-    //   return;
-    // }
-    fetchTokens(necessaryMarkets);
-  };
-
-  const getPrice = async (cTokenAddress: any) => {
-    let tokenPrice = await Contracts.PriceOracleProxy.getUnderlyingPrice(
-      cTokenAddress
-    );
-    const CTokenContract = initContract(cTokenAddress, CErc20Delegator.abi);
-    const underlyingTokenAddress = await CTokenContract.underlying();
-    const TokenContract = initContract(underlyingTokenAddress, IVTDemoABI.abi);
-    const tokenDecimals = await TokenContract.decimals();
-    const decimalDiff = 36 - parseFloat(tokenDecimals);
-    const priceMantissa = toBN(tokenPrice).div(toBN(10).pow(decimalDiff));
-    return priceMantissa.toFixed();
-  };
-
   const getNumber = (hexNum: any) => {
     return ethers.utils.bigNumberify(hexNum).toString();
-  };
-
-  const getUserSupplyBalance = async (cTokenContract: any, token: any) => {
-    let tokenBalance = await cTokenContract.balanceOf(currentAccount);
-    tokenBalance = getNumber(tokenBalance);
-
-    if (parseFloat(tokenBalance) > 0) {
-      const underlying = await cTokenContract.underlying();
-      const tokenContract = initContract(underlying, ERC20Detailed.abi);
-      const tokenDecimals = await tokenContract.decimals();
-      const divBy = DECIMAL_18 * 10 ** parseFloat(tokenDecimals);
-
-      let exchangeRateStored = await cTokenContract.exchangeRateStored();
-      exchangeRateStored = getNumber(exchangeRateStored);
-      const bal =
-        (parseFloat(tokenBalance) * parseFloat(exchangeRateStored)) / divBy;
-      tokenBalance = bal;
-      const supplyBal = parseFloat(token.priceUsd) * parseFloat(tokenBalance);
-
-      let obj = { ...setupData };
-      obj.totalSupplyBalance = obj.totalSupplyBalance + supplyBal;
-      setSetupData(obj);
-    }
-    return tokenBalance;
   };
 
   const getUserSupplyBalanceUSD = (token: any) => {
@@ -475,132 +289,8 @@ export const TxnSection: React.FC<Props> = ({}) => {
     return parseFloat(token.tokenBorrowBalance) * parseFloat(token.priceUsd);
   };
 
-  const getUserBorrowBalance = async (cTokenContract: any, token: any) => {
-    let tokenBalance = await cTokenContract.borrowBalanceStored(currentAccount);
-    tokenBalance = getNumber(tokenBalance);
-    if (parseFloat(tokenBalance) > 0) {
-      const underlying = await cTokenContract.underlying();
-      const tokenContract = initContract(underlying, ERC20Detailed.abi);
-      const tokenDecimals = await tokenContract.decimals();
-
-      tokenBalance = parseFloat(tokenBalance) / 10 ** parseFloat(tokenDecimals);
-      const borrowBal = parseFloat(token.priceUsd) * parseFloat(tokenBalance);
-
-      let obj = { ...setupData };
-      obj.totalBorrowBalance = obj.totalBorrowBalance + borrowBal;
-      setSetupData(obj);
-    }
-    return tokenBalance;
-  };
-
-  const getUserTokenBalance = async (tokenContract: any) => {
-    let tokenBalance = await tokenContract.balanceOf(currentAccount);
-    tokenBalance = getNumber(tokenBalance);
-    return tokenBalance;
-  };
-
-  const getEnteredMarkets = async () => {
-    const assetsInArray = await Contracts.Comptroller.getAssetsIn(
-      currentAccount
-    );
-    if (assetsInArray.length === 0) {
-      return;
-    }
-
-    // tslint:disable-next-line: prefer-for-of
-    for (let i = 0; i < assetsInArray.length; i++) {
-      // tslint:disable-next-line: prefer-for-of
-      for (let j = 0; j < tokenData.length; j++) {
-        if (
-          assetsInArray[i].toLowerCase() ===
-          tokenData[j].cTokenAddress.toLowerCase()
-        ) {
-          tokenData[j].enabled = true;
-        }
-      }
-    }
-  };
-
-  const checkBorrowPaused = async () => {
-    let myComptrollerV3: any = ComptrollerV3;
-
-    const web3Contract = initContract(
-      contractAddresses.Comptroller,
-      myComptrollerV3["abi"]
-    );
-
-    let borrPausedTokens = [];
-    let borrPausedTokensSymbols = [];
-
-    for (const token of tokenData) {
-      const isBorrowingPaused = await web3Contract.borrowGuardianPaused(
-        token.cTokenAddress
-      );
-      if (isBorrowingPaused) {
-        borrPausedTokens.push(token);
-        borrPausedTokensSymbols.push(token.symbol);
-      }
-    }
-
-    setBorrowPausedTokens(borrPausedTokens);
-    setBorrowPausedTokensSymbols(borrPausedTokensSymbols);
-  };
-
-  const getAccountLiquidity = async (token: any, i: number) => {
-    let accountLiquidity = await Contracts.Comptroller.getAccountLiquidity(
-      currentAccount
-    );
-    accountLiquidity = new BigNumber(accountLiquidity[1].toString());
-
-    const myAvailabletoBorrowUser = accountLiquidity.div(10 ** 18).toFixed();
-    setAvailabletoBorrowUser(myAvailabletoBorrowUser);
-
-    if (
-      parseFloat(token.cTokenSupplyBalanceUSD) > 0 &&
-      token.enabled === true
-    ) {
-      const myAccountLiquidity =
-        accountLiquidity +
-        (parseFloat(token.collateralFactor) *
-          parseFloat(token.cTokenSupplyBalanceUSD)) /
-          100;
-      setAccountLiquidity(myAccountLiquidity);
-    }
-  };
-
-  const getCompRate = async () => {
-    let myCompRate = toBN(0);
-    setCompRate(myCompRate);
-    let myComptrollerV3: any = ComptrollerV3;
-    console.log(
-      "2!!contractAddresses.Comptroller",
-      contractAddresses.Comptroller
-    );
-    const web3Contract = initContract(
-      contractAddresses.Comptroller,
-      myComptrollerV3["abi"]
-    );
-    let comprate = await web3Contract.compRate();
-    comprate = parseFloat(comprate) / 10 ** 18; // 18 decimal reward Token
-    comprate = new BigNumber(comprate);
-    setCompRate(comprate);
-    return comprate;
-  };
-
-  const getCompAddress = async () => {
-    let myComptrollerV3: any = ComptrollerV3;
-
-    console.log(
-      "3!!contractAddresses.Comptroller",
-      contractAddresses.Comptroller
-    );
-    const web3Contract = initContract(
-      contractAddresses.Comptroller,
-      myComptrollerV3["abi"]
-    );
-    let compaddress = await web3Contract.getCompAddress();
-    setCompAddress(compaddress);
-    return compaddress;
+  const getAvailableBorrowUSD = (token: any) => {
+    return parseFloat(token.availableBorrow) * parseFloat(token.priceUsd);
   };
 
   const calcNetApy = () => {
@@ -650,37 +340,66 @@ export const TxnSection: React.FC<Props> = ({}) => {
     setTotalCashDeployed(myTotalCaseDeployed);
   };
 
-  const getCompPrice = () => {
-    if (tokenData.length === 0) {
-      return;
-    }
-    let result = tokenData.filter(
-      (token: any) =>
-        token.tokenAddress.toLowerCase() === compAddress.toLowerCase()
-    );
-    if (result.length) {
-      let myCompPrice = result[0].priceUsd;
-      setCompPrice(myCompPrice);
-    } else if (
-      compAddress.toLowerCase() ==
-      "0x3C70260eEe0a2bFc4b375feB810325801f289fBd".toLowerCase()
-    ) {
-      let compPrice1 = getPrice("0xfff0cC78a7E7CE5d6Ba60f23628fF9A63BEee87F");
-      setCompPrice(compPrice1);
-    }
+  const updateBalanceEffect = () => {
+    const secondsInYear = 31622400;
+    const updateIntervalInSec = 7;
+    const myPolling = setInterval(() => {
+      let obj = { ...setupData };
+      if (
+        toDecimal(setupData.totalSupplyBalance, 7) > 0 &&
+        apyData.posApy > 0
+      ) {
+        const posApyPerSec = apyData.posApy / secondsInYear;
+        const posApyPerInterval = posApyPerSec * updateIntervalInSec;
+        obj.totalSupplyBalance =
+          obj.totalSupplyBalance +
+          (obj.totalSupplyBalance * posApyPerInterval) / 100;
+      }
+      if (
+        toDecimal(setupData.totalBorrowBalance, 7) > 0 &&
+        apyData.negApy > 0
+      ) {
+        const negApyPerSec = apyData.negApy / secondsInYear;
+        const negApyPerInterval = negApyPerSec * updateIntervalInSec;
+        obj.totalBorrowBalance =
+          obj.totalBorrowBalance +
+          (obj.totalBorrowBalance * negApyPerInterval) / 100;
+      }
+      setSetupData(obj);
+    }, updateIntervalInSec * 1000);
+    setPolling(myPolling);
   };
 
-  const calcTotalLoanAmount = () => {
-    let myTotalCashLoans = 0;
-
-    tokenData.forEach((token: any) => {
-      if (parseFloat(token.totalErc20Borrows) >= 0) {
-        myTotalCashLoans +=
-          parseFloat(token.totalErc20Borrows) * parseFloat(token.priceUsd);
+  const getVaultApys = async (vaultSymbol: any) => {
+    try {
+      const allApys = await getOmniSteaksApys();
+      let obj = { ...dataObj };
+      if (typeof allApys != "undefined") {
+        let apy = allApys[vaultSymbol]["totalApy"];
+        setVaultApy(apy);
+        obj.limeApy = allApys["omnifarm-USDO-LIME"]["totalApy"];
+        obj.popenApy = allApys["omnifarm-usdo-popen"]["totalApy"];
+        obj.landApy = allApys["omnifarm-USDO-LAND"]["totalApy"];
+        obj.rosnApy = allApys["omnifarm-USDO-ROSN"]["totalApy"];
+        obj.gfxApy = allApys["omnifarm-USDO-GFX"]["totalApy"];
+        obj.busdApy = allApys["omnifarm-usdo-busd-FET"]["totalApy"];
+        obj.anyMattApy = allApys["omnifarm-usdo-busd-anyMTLX"]["totalApy"];
+        obj.hyveApy = allApys["omnifarm-USDO-HYVE"]["totalApy"];
+      } else {
+        setVaultApy(0);
+        obj.limeApy = 0;
+        obj.popenApy = 0;
+        obj.landApy = 0;
+        obj.rosnApy = 0;
+        obj.gfxApy = 0;
+        obj.busdApy = 0;
+        obj.anyMattApy = 0;
+        obj.hyveApy = 0;
       }
-    });
-
-    setTotalCashLoans(myTotalCashLoans);
+      setDataObj(obj);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const setCompTokenApyData = () => {
@@ -771,44 +490,428 @@ export const TxnSection: React.FC<Props> = ({}) => {
     setUsdoTokenDetails(result[0]);
   };
 
+  ////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////
+
+  const estimateGasPrice = async () => {
+    const obj: {
+      name: string;
+      defaultGasPrice: any;
+      blocksPerYear: number;
+    } = { ...networkData };
+    obj.defaultGasPrice = ethers.utils.parseUnits(
+      blockchainConstants[obj.name].DefaultGasPrice,
+      "gwei"
+    );
+    setNetworkData(obj);
+  };
+
+  const setNetworkVariables = async () => {
+    let obj = { ...networkData };
+    obj.name = "bsc";
+    if (blockchainConstants[obj.name]) {
+      obj.defaultGasPrice = ethers.utils.parseUnits(
+        blockchainConstants[obj.name].DefaultGasPrice,
+        "gwei"
+      );
+      obj.blocksPerYear = blockchainConstants[obj.name].BlocksPerYear;
+    }
+  };
+
+  const enterExitMarket = async (token: any) => {
+    await estimateGasPrice();
+    const addressArray = [];
+    addressArray.push(token.cTokenAddress);
+    let tx;
+    const overrides = {
+      gasPrice: networkData.defaultGasPrice,
+      gasLimit: 300000,
+    };
+    if (token.enabled === true) {
+      tx = await comptrollerContract.methods
+        .exitMarket(token.cTokenAddress, overrides)
+        .send({ from: account });
+    } else {
+      tx = await comptrollerContract.methods
+        .enterMarkets(addressArray, overrides)
+        .send({ from: account });
+    }
+
+    await web3.waitForTransaction(tx.hash);
+    await setup();
+  };
+
+  const stake = async (i: any) => {
+    await estimateGasPrice();
+    setTokenAddress(tokenData[i].tokenAddress);
+    const decimals = await TokenContract.methods.decimals().call();
+    let amountInDec = tokenToDecimals(farmDataObj["stakeInputAmt"], decimals);
+
+    setCTokenAddress(tokenData[i].cTokenAddress);
+    const overrides = {
+      gasPrice: networkData.defaultGasPrice,
+      gasLimit: 1000000,
+    };
+    const tx = await cTokenContract.methods
+      .mint(amountInDec, overrides)
+      .send({ from: account });
+    await web3.waitForTransaction(tx.hash);
+
+    if (
+      tokenData[i].collateralFactor !== "0.00" &&
+      tokenData[i].enabled === false
+    ) {
+      await enterExitMarket(tokenData[i]);
+    }
+    setup();
+  };
+
+  const getContractAddresses = async () => {
+    let myContractAddresses: any = {};
+
+    myContractAddresses = blockchainConstants["bsc"];
+    myContractAddresses.Comptroller = selectedComp;
+    setContractAddresses(myContractAddresses);
+    return myContractAddresses;
+  };
+
+  const initAllContracts = async (contractAddresses: any) => {
+    // setContracts({})
+
+    // myContracts.Comptroller = initContract(
+    //   contractAddresses.Comptroller,
+    //   myComptroller.abi
+    // );
+
+    const compAddress = await comptrollerContract.methods
+      .getCompAddress()
+      .call();
+
+    setCompAddress(compAddress);
+    // myContracts.Comp = initContract(compAddress, Comp.abi);
+    // compContract = useCompContract(compAddress);
+
+    const myOracleAddress = await comptrollerContract.methods.oracle().call();
+
+    setOracleAddress(myOracleAddress);
+    // myContracts.PriceOracleProxy = initContract(
+    //   oracleAddress,
+    //   UniswapOracleTWAP.abi
+    // );
+
+    // priceOracleProxyContract = usePriceOracleProxyContract(oracleAddress);
+
+    // setContracts(myContracts);
+  };
+
+  const setup = async () => {
+    const resetState = {
+      totalValueLocked: 0,
+      availabletoBorrowUser: 0,
+      repayMaxAmount: false,
+      bonusApy: true,
+      selectedTokenIndex: 0,
+      totalSupplyBalance: 0,
+      totalBorrowBalance: 0,
+      accountLiquidity: 0,
+      sliderPercentage: 0,
+      roiFactor: 0,
+      compEarned: new BigNumber(0),
+      compBalance: 0,
+    };
+
+    setSetupData(resetState);
+
+    const myUserAddress = !!account && !!account.address ? account.address : "";
+
+    setCurrentAccount(myUserAddress);
+
+    await setNetworkVariables();
+
+    // BELOW IS ANGULAR CODE FOR SHOWING LOADER
+
+    // if (this.networkData.name == "polygon") {
+    //   cApp.blockPage({
+    //     overlayColor: "#000000",
+    //     state: "secondary",
+    //     message:
+    //       'Loading App...<br><br><div style="font-size: 0.8rem;">If it is taking too long to load, please try using different rpc urls: <br> <br> <strong>MATIC</strong> <br> 1. https://rpc-mainnet.matic.quiknode.pro <br>2. https://matic-mainnet.chainstacklabs.com</div><br>',
+    //   });
+    // } else {
+    //   cApp.blockPage({
+    //     overlayColor: "#000000",
+    //     state: "secondary",
+    //     message: "Loading App...",
+    //   });
+    // }
+
+    const myContractAddresses = await getContractAddresses();
+
+    if (typeof myContractAddresses === "undefined") {
+      return;
+    }
+
+    const allListedTokens = await fetchAllMarkets();
+    await initAllContracts(myContractAddresses);
+
+    const necessaryMarkets = allListedTokens;
+
+    await estimateGasPrice();
+
+    // In case there are no markets
+    // if (allListedTokens.length === 0) {
+    //   cApp.unblockPage();
+    //   return;
+    // }
+    fetchTokens(necessaryMarkets);
+  };
+
+  const getPrice = async (cTokenAddress: any) => {
+    let tokenPrice = await Contracts.PriceOracleProxy.getUnderlyingPrice(
+      cTokenAddress
+    );
+    const CTokenContractWithAbiCErc20Delegator =
+      useCTokenContractWithAbiCErc20Delegator(cTokenAddress);
+    const underlyingTokenAddress =
+      await CTokenContractWithAbiCErc20Delegator.methods.underlying().call();
+
+    const TokenContract = useTokenContractWithAbiIVTDemoABI(
+      underlyingTokenAddress
+    );
+    const tokenDecimals = await TokenContract.methods.decimals().call();
+    const decimalDiff = 36 - parseFloat(tokenDecimals);
+    const priceMantissa = toBN(tokenPrice).div(toBN(10).pow(decimalDiff));
+    return priceMantissa.toFixed();
+  };
+
+  const getUserSupplyBalance = async (cTokenContract: any, token: any) => {
+    let tokenBalance = await cTokenContract.methods
+      .balanceOf(currentAccount)
+      .call();
+    tokenBalance = getNumber(tokenBalance);
+
+    if (parseFloat(tokenBalance) > 0) {
+      const underlying = await cTokenContract.methods.underlying().call();
+      const tokenContract = useTokenContract(underlying);
+      const tokenDecimals = await tokenContract.methods.decimals().call();
+      const divBy = DECIMAL_18 * 10 ** parseFloat(tokenDecimals);
+
+      let exchangeRateStored = await cTokenContract.methods
+        .exchangeRateStored()
+        .call();
+      exchangeRateStored = getNumber(exchangeRateStored);
+      const bal =
+        (parseFloat(tokenBalance) * parseFloat(exchangeRateStored)) / divBy;
+      tokenBalance = bal;
+      const supplyBal = parseFloat(token.priceUsd) * parseFloat(tokenBalance);
+
+      let obj = { ...setupData };
+      obj.totalSupplyBalance = obj.totalSupplyBalance + supplyBal;
+      setSetupData(obj);
+    }
+    return tokenBalance;
+  };
+
+  const getUserBorrowBalance = async (cTokenContract: any, token: any) => {
+    let tokenBalance = await cTokenContract.methods
+      .borrowBalanceStored(currentAccount)
+      .call();
+    tokenBalance = getNumber(tokenBalance);
+    if (parseFloat(tokenBalance) > 0) {
+      const underlying = await cTokenContract.methods.underlying().call();
+      // const tokenContract = initContract(underlying, ERC20Detailed.abi);
+      const myTokenContract = useTokenContract(underlying);
+      const tokenDecimals = await myTokenContract.methods.decimals().call();
+
+      tokenBalance = parseFloat(tokenBalance) / 10 ** parseFloat(tokenDecimals);
+      const borrowBal = parseFloat(token.priceUsd) * parseFloat(tokenBalance);
+
+      let obj = { ...setupData };
+      obj.totalBorrowBalance = obj.totalBorrowBalance + borrowBal;
+      setSetupData(obj);
+    }
+    return tokenBalance;
+  };
+
+  const getUserTokenBalance = async (tokenContract: any) => {
+    let tokenBalance = await tokenContract.methods
+      .balanceOf(currentAccount)
+      .call();
+    tokenBalance = getNumber(tokenBalance);
+    return tokenBalance;
+  };
+
+  const getEnteredMarkets = async () => {
+    // const assetsInArray = await Contracts.Comptroller.getAssetsIn(
+    //   currentAccount
+    // );
+
+    const assetsInArray = await comptrollerContract.methods
+      .getAssetsIn(currentAccount)
+      .call();
+
+    if (assetsInArray.length === 0) {
+      return;
+    }
+
+    // tslint:disable-next-line: prefer-for-of
+    for (let i = 0; i < assetsInArray.length; i++) {
+      // tslint:disable-next-line: prefer-for-of
+      for (let j = 0; j < tokenData.length; j++) {
+        if (
+          assetsInArray[i].toLowerCase() ===
+          tokenData[j].cTokenAddress.toLowerCase()
+        ) {
+          tokenData[j].enabled = true;
+        }
+      }
+    }
+  };
+
+  const checkBorrowPaused = async () => {
+    let myComptrollerV3: any = ComptrollerV3;
+
+    // const web3Contract = initContract(
+    //   contractAddresses.Comptroller,
+    //   myComptrollerV3["abi"]
+    // );
+
+    const myWeb3Contract = useWeb3Contract(selectedComp);
+
+    let borrPausedTokens = [];
+    let borrPausedTokensSymbols = [];
+
+    for (const token of tokenData) {
+      const isBorrowingPaused = await myWeb3Contract.methods
+        .borrowGuardianPaused(token.cTokenAddress)
+        .call();
+      if (isBorrowingPaused) {
+        borrPausedTokens.push(token);
+        borrPausedTokensSymbols.push(token.symbol);
+      }
+    }
+
+    setBorrowPausedTokens(borrPausedTokens);
+    setBorrowPausedTokensSymbols(borrPausedTokensSymbols);
+  };
+
+  const getAccountLiquidity = async (token: any, i: number) => {
+    let accountLiquidity = await comptrollerContract
+      .getAccountLiquidity(currentAccount)
+      .call();
+    accountLiquidity = new BigNumber(accountLiquidity[1].toString());
+
+    const myAvailabletoBorrowUser = accountLiquidity.div(10 ** 18).toFixed();
+    setAvailabletoBorrowUser(myAvailabletoBorrowUser);
+
+    if (
+      parseFloat(token.cTokenSupplyBalanceUSD) > 0 &&
+      token.enabled === true
+    ) {
+      const myAccountLiquidity =
+        accountLiquidity +
+        (parseFloat(token.collateralFactor) *
+          parseFloat(token.cTokenSupplyBalanceUSD)) /
+          100;
+      setAccountLiquidity(myAccountLiquidity);
+    }
+  };
+
+  const getCompRate = async () => {
+    let myCompRate = toBN(0);
+    setCompRate(myCompRate);
+    // const web3Contract = initContract(
+    //   contractAddresses.Comptroller,
+    //   myComptrollerV3["abi"]
+    // );
+    const myWeb3Contract = useWeb3Contract(selectedComp);
+    // let comprate = await web3Contract.compRate();
+    let comprate = await myWeb3Contract.methods.compRate().call();
+    comprate = parseFloat(comprate) / 10 ** 18; // 18 decimal reward Token
+    comprate = new BigNumber(comprate);
+    setCompRate(comprate);
+    return comprate;
+  };
+
+  const getCompAddress = async () => {
+    // const web3Contract = initContract(
+    //   contractAddresses.Comptroller,
+    //   myComptrollerV3["abi"]
+    // );
+    const myWeb3Contract = useWeb3Contract(selectedComp);
+
+    let compaddress = await myWeb3Contract.methods.getCompAddress().call();
+    setCompAddress(compaddress);
+    return compaddress;
+  };
+
+  const getCompPrice = () => {
+    if (tokenData.length === 0) {
+      return;
+    }
+    let result = tokenData.filter(
+      (token: any) =>
+        token.tokenAddress.toLowerCase() === compAddress.toLowerCase()
+    );
+    if (result.length) {
+      let myCompPrice = result[0].priceUsd;
+      setCompPrice(myCompPrice);
+    } else if (
+      compAddress.toLowerCase() ==
+      "0x3C70260eEe0a2bFc4b375feB810325801f289fBd".toLowerCase()
+    ) {
+      let compPrice1 = getPrice("0xfff0cC78a7E7CE5d6Ba60f23628fF9A63BEee87F");
+      setCompPrice(compPrice1);
+    }
+  };
+
+  const calcTotalLoanAmount = () => {
+    let myTotalCashLoans = 0;
+
+    tokenData.forEach((token: any) => {
+      if (parseFloat(token.totalErc20Borrows) >= 0) {
+        myTotalCashLoans +=
+          parseFloat(token.totalErc20Borrows) * parseFloat(token.priceUsd);
+      }
+    });
+
+    setTotalCashLoans(myTotalCashLoans);
+  };
+
   const getCompEarned = async () => {
     const DOUBLE = new BigNumber(1e36);
     const EXP = new BigNumber(1e18);
-    // this.compEarned = new BigNumber(0);
     let myCompEarned = new BigNumber(0);
 
-    let compTokenEarned = await Contracts.Comptroller.compAccrued(
-      currentAccount
-    );
+    let compTokenEarned = await comptrollerContract.methods
+      .compAccrued(currentAccount)
+      .call();
     compTokenEarned = new BigNumber(compTokenEarned);
     myCompEarned = myCompEarned.plus(compTokenEarned);
-    const allMarkets = await Contracts.Comptroller.getAllMarkets();
+
+    const allMarkets = await comptrollerContract.methods.getAllMarkets().call();
 
     await allMarkets.forEach(async (cTokenAddr: any) => {
       const markets = await Contracts.Comptroller.markets(cTokenAddr);
-      // initial filter
-      // if (!markets.isComped) { return; }
 
-      // modified filter
-      const compSupplyState = await Contracts.Comptroller.compSupplyState(
-        cTokenAddr
-      );
+      const compSupplyState = await comptrollerContract.methods
+        .compSupplyState(cTokenAddr)
+        .call();
       const suppIndexCheck = new BigNumber(compSupplyState.index);
-      const compBorrowState = await Contracts.Comptroller.compBorrowState(
-        cTokenAddr
-      );
+      const compBorrowState = await comptrollerContract.methods
+        .compBorrowState(cTokenAddr)
+        .call();
       const borrIndexCheck = new BigNumber(compBorrowState.index);
       if (suppIndexCheck.isEqualTo(0) && borrIndexCheck.isEqualTo(0)) {
         return;
       }
-      const CTokenContract = initContract(cTokenAddr, CErc20Immutable.abi);
+      let CTokenContract = useCTokenContract(cTokenAddr);
 
       const supplyIndex = new BigNumber(compSupplyState.index);
 
-      let compSupplierIndex = await Contracts.Comptroller.compSupplierIndex(
-        cTokenAddr,
-        currentAccount
-      );
+      let compSupplierIndex = await comptrollerContract.methods
+        .compSupplierIndex(cTokenAddr, currentAccount)
+        .call();
       compSupplierIndex = new BigNumber(compSupplierIndex);
       if (compSupplierIndex.isEqualTo(0) && supplyIndex.isGreaterThan(0)) {
         compSupplierIndex = new BigNumber(1e36); // compInitialIndex
@@ -816,32 +919,34 @@ export const TxnSection: React.FC<Props> = ({}) => {
 
       const deltaIndex = supplyIndex.minus(compSupplierIndex);
 
-      let supplierTokens = await CTokenContract.balanceOf(currentAccount);
+      let supplierTokens = await CTokenContract.methods.balanceOf(
+        currentAccount
+      );
       supplierTokens = new BigNumber(supplierTokens);
       let supplierDelta = supplierTokens.times(deltaIndex);
       supplierDelta = supplierDelta.div(DOUBLE);
 
-      // const supplierAccrued = compTokenEarned.plus(supplierDelta);
       myCompEarned = myCompEarned.plus(supplierDelta);
 
-      // For Borrow
       const borrowIndex = new BigNumber(compBorrowState.index);
-      let compBorrowerIndex = await Contracts.Comptroller.compBorrowerIndex(
-        cTokenAddr,
-        currentAccount
-      );
+
+      let compBorrowerIndex = await comptrollerContract.methods
+        .compBorrowerIndex(cTokenAddr, currentAccount)
+        .call();
       compBorrowerIndex = new BigNumber(compBorrowerIndex);
 
       if (compBorrowerIndex.isGreaterThan(0)) {
         const deltaIndexBorrow = borrowIndex.minus(compBorrowerIndex);
 
-        let borrowBalanceStored = await CTokenContract.borrowBalanceStored(
-          currentAccount
-        );
+        let borrowBalanceStored = await CTokenContract.methods
+          .borrowBalanceStored(currentAccount)
+          .call();
         borrowBalanceStored = new BigNumber(borrowBalanceStored);
         borrowBalanceStored = borrowBalanceStored.times(EXP);
 
-        let marketBorrowIndex = await CTokenContract.borrowIndex();
+        let marketBorrowIndex = await CTokenContract.methods
+          .borrowIndex()
+          .call();
         marketBorrowIndex = new BigNumber(marketBorrowIndex);
         const borrowerAmount = borrowBalanceStored.div(marketBorrowIndex);
 
@@ -900,26 +1005,25 @@ export const TxnSection: React.FC<Props> = ({}) => {
   };
 
   const checkApproved = async (tokenContract: any, allowanceOf: any) => {
-    let approvedBal = await tokenContract.allowance(
-      currentAccount,
-      allowanceOf
-    );
+    let approvedBal = await tokenContract.methods
+      .allowance(currentAccount, allowanceOf)
+      .call();
     approvedBal = getNumber(approvedBal);
     return approvedBal !== "0" ? true : false;
   };
 
   const getCtokenBorrows = async (cTokenContract: any, tokenContract: any) => {
-    const borrow = await cTokenContract.totalBorrows();
-    const erc20Decimals = await tokenContract.decimals();
+    const borrow = await cTokenContract.methods.totalBorrows().call();
+    const erc20Decimals = await tokenContract.methods.decimals().call();
     const erc20Borrows = parseFloat(borrow) / 10 ** parseFloat(erc20Decimals);
     return erc20Borrows;
   };
 
   const getCtokenSupply = async (cTokenContract: any, tokenContract: any) => {
-    const erc20Decimals = await tokenContract.decimals();
-    const borrow = await cTokenContract.totalBorrows();
+    const erc20Decimals = await tokenContract.methods.decimals().call();
+    const borrow = await cTokenContract.methods.totalBorrows().call();
     const cash = await cTokenContract.getCash();
-    const reserves = await cTokenContract.totalReserves();
+    const reserves = await cTokenContract.methods.totalReserves().call();
     const added = parseFloat(cash) + parseFloat(borrow) + parseFloat(reserves);
     const divBy = 10 ** parseFloat(erc20Decimals);
     const result = added / divBy;
@@ -927,7 +1031,9 @@ export const TxnSection: React.FC<Props> = ({}) => {
   };
 
   const getCollateralFactor = async (cTokenAddress: any) => {
-    const markets = await Contracts.Comptroller.markets(cTokenAddress);
+    const markets = await comptrollerContract.methods
+      .markets(cTokenAddress)
+      .call();
     const colFactorStrTemp = getNumber(markets.collateralFactorMantissa);
     const divBy = 10 ** 16;
     const colFactorStr = parseFloat(colFactorStrTemp) / divBy;
@@ -935,9 +1041,9 @@ export const TxnSection: React.FC<Props> = ({}) => {
   };
 
   const getAPY = async (cTokenContract: any) => {
-    let borrowRate = await cTokenContract.borrowRatePerBlock();
+    let borrowRate = await cTokenContract.methods.borrowRatePerBlock().call();
     borrowRate = getNumber(borrowRate);
-    let supplyRate = await cTokenContract.supplyRatePerBlock();
+    let supplyRate = await cTokenContract.methods.supplyRatePerBlock().call();
     supplyRate = getNumber(supplyRate);
     const borrowApy = networkData.blocksPerYear * parseFloat(borrowRate);
     const supplyApy = networkData.blocksPerYear * parseFloat(supplyRate);
@@ -948,9 +1054,9 @@ export const TxnSection: React.FC<Props> = ({}) => {
   };
 
   const getUtilizationRate = async (cTokenContract: any) => {
-    const cash = await cTokenContract.getCash();
-    const borrow = await cTokenContract.totalBorrows();
-    const reserves = await cTokenContract.totalReserves();
+    const cash = await cTokenContract.methods.getCash().call();
+    const borrow = await cTokenContract.methods.totalBorrows().call();
+    const reserves = await cTokenContract.methods.totalReserves().call();
     const divBy = parseFloat(cash) + parseFloat(borrow) - parseFloat(reserves);
     if (divBy === 0) {
       return "0";
@@ -960,24 +1066,21 @@ export const TxnSection: React.FC<Props> = ({}) => {
   };
 
   const getAvailableBorrow = async (cTokenContract: any) => {
-    const underlying = await cTokenContract.underlying();
-    const tokenContract = initContract(underlying, ERC20Detailed.abi);
-    const tokenDecimals = await tokenContract.decimals();
-    let cash = await cTokenContract.getCash();
+    const underlying = await cTokenContract.methods.underlying().call();
+    // const tokenContract = initContract(underlying, ERC20Detailed.abi);
+    const tokenContract = useTokenContract(underlying);
+    const tokenDecimals = await tokenContract.methods.decimals().call();
+    let cash = await cTokenContract.methods.getCash().call();
     cash = getNumber(cash);
     const availableBorrow = parseFloat(cash) / 10 ** parseFloat(tokenDecimals);
     return availableBorrow.toString();
   };
 
-  const getAvailableBorrowUSD = (token: any) => {
-    return parseFloat(token.availableBorrow) * parseFloat(token.priceUsd);
-  };
-
   const initToken = async (token: any, i: number) => {
     token.isListed = true;
-    const cTokenContract = initContract(
-      token.cTokenAddress,
-      CErc20Delegator.abi
+
+    const cTokenContract = useCTokenContractWithAbiCErc20Delegator(
+      token.cTokenAddress
     );
     let priceUsd = await getPrice(token.cTokenAddress);
     token.priceUsd =
@@ -997,61 +1100,77 @@ export const TxnSection: React.FC<Props> = ({}) => {
       }
     );
     // });
-    cTokenContract.name().then((cTokenName: string) => {
-      token.cTokenName = cTokenName;
-    });
-    cTokenContract.underlying().then((underlyingTokenAddress: string) => {
-      token.tokenAddress = underlyingTokenAddress;
-
-      const tokenContract = initContract(
-        underlyingTokenAddress,
-        IVTDemoABI.abi
-      );
-      tokenContract.decimals().then(async (decimals: any) => {
-        const divBy = 10 ** parseFloat(decimals);
-        token.erc20Decimals = decimals;
-        getUserTokenBalance(tokenContract).then((tokenBalance) => {
-          token.tokenBalance = parseFloat(tokenBalance) / divBy;
-          token.tokenBalanceBN = new BigNumber(tokenBalance.toString());
-          afterInitToken(token, i);
+    cTokenContract.methods
+      .name()
+      .call()
+      .then((cTokenName: string) => {
+        token.cTokenName = cTokenName;
+      });
+    cTokenContract.methods
+      .underlying()
+      .call()
+      .then((underlyingTokenAddress: string) => {
+        token.tokenAddress = underlyingTokenAddress;
+        const tokenContract = useTokenContractWithAbiIVTDemoABI(
+          underlyingTokenAddress
+        );
+        tokenContract.methods
+          .decimals()
+          .call()
+          .then(async (decimals: any) => {
+            const divBy = 10 ** parseFloat(decimals);
+            token.erc20Decimals = decimals;
+            getUserTokenBalance(tokenContract).then((tokenBalance) => {
+              token.tokenBalance = parseFloat(tokenBalance) / divBy;
+              token.tokenBalanceBN = new BigNumber(tokenBalance.toString());
+              afterInitToken(token, i);
+            });
+            tokenContract.methods
+              .totalSupply()
+              .call()
+              .then((totalSupply: any) => {
+                totalSupply = getNumber(totalSupply);
+                token.erc20TotalSupply =
+                  parseFloat(totalSupply) /
+                  10 ** parseFloat(token.erc20Decimals);
+              });
+          });
+        tokenContract.methods
+          .symbol()
+          .call()
+          .then((symbol: any) => {
+            symbol = symbol;
+            token.symbol = cTokenAddressSymabolMapping[token.cTokenAddress]
+              ? cTokenAddressSymabolMapping[token.cTokenAddress]
+              : symbol;
+            token.text = cTokenAddressSymabolMapping[token.cTokenAddress]
+              ? cTokenAddressSymabolMapping[token.cTokenAddress]
+              : symbol;
+          });
+        tokenContract
+          .name()
+          .call()
+          .then(async (name: any) => {
+            token.name = name;
+          });
+        checkApproved(tokenContract, token.cTokenAddress).then((approved) => {
+          token.approved = approved;
         });
-        tokenContract.totalSupply().then((totalSupply: any) => {
-          totalSupply = getNumber(totalSupply);
-          token.erc20TotalSupply =
-            parseFloat(totalSupply) / 10 ** parseFloat(token.erc20Decimals);
-        });
+        getCtokenBorrows(cTokenContract, tokenContract).then(
+          (totalErc20Borrows: any) => {
+            token.totalErc20Borrows = totalErc20Borrows;
+            token.totalErc20BorrowsUsd =
+              totalErc20Borrows * parseFloat(token.priceUsd);
+          }
+        );
+        getCtokenSupply(cTokenContract, tokenContract).then(
+          (totalErc20Supply: any) => {
+            token.totalErc20Supply = totalErc20Supply;
+            token.totalErc20SupplyUsd =
+              totalErc20Supply * parseFloat(token.priceUsd);
+          }
+        );
       });
-      tokenContract.symbol().then((symbol: any) => {
-        // console.log(symbol);
-        symbol = symbol;
-        token.symbol = cTokenAddressSymabolMapping[token.cTokenAddress]
-          ? cTokenAddressSymabolMapping[token.cTokenAddress]
-          : symbol;
-        token.text = cTokenAddressSymabolMapping[token.cTokenAddress]
-          ? cTokenAddressSymabolMapping[token.cTokenAddress]
-          : symbol;
-      });
-      tokenContract.name().then(async (name: any) => {
-        token.name = name;
-      });
-      checkApproved(tokenContract, token.cTokenAddress).then((approved) => {
-        token.approved = approved;
-      });
-      getCtokenBorrows(cTokenContract, tokenContract).then(
-        (totalErc20Borrows: any) => {
-          token.totalErc20Borrows = totalErc20Borrows;
-          token.totalErc20BorrowsUsd =
-            totalErc20Borrows * parseFloat(token.priceUsd);
-        }
-      );
-      getCtokenSupply(cTokenContract, tokenContract).then(
-        (totalErc20Supply: any) => {
-          token.totalErc20Supply = totalErc20Supply;
-          token.totalErc20SupplyUsd =
-            totalErc20Supply * parseFloat(token.priceUsd);
-        }
-      );
-    });
     getCollateralFactor(token.cTokenAddress).then((collateralFactor: any) => {
       token.collateralFactor = collateralFactor;
     });
@@ -1085,22 +1204,10 @@ export const TxnSection: React.FC<Props> = ({}) => {
   };
 
   const fetchAllMarkets = async () => {
-    let myComptrollerV3: any = ComptrollerV3;
-
-    console.log(
-      "4!!contractAddresses.Comptroller",
-      contractAddresses.Comptroller
-    );
-    const web3Contract = initContract(
-      contractAddresses.Comptroller,
-      myComptrollerV3.abi
-    );
-    // if (!!web3Contract) {
-    let adminAddr = await web3Contract.admin();
+    let adminAddr = await web3Contract.methods.admin().call();
     setAdminAddress(adminAddr);
-    const allMarkets = await web3Contract.getAllMarkets();
+    const allMarkets = await web3Contract.methods.getAllMarkets().call();
     return allMarkets;
-    // }
   };
 
   const erc20Approve = async (i: number, from: any) => {
@@ -1109,16 +1216,15 @@ export const TxnSection: React.FC<Props> = ({}) => {
     const amountStr =
       "115792089237316195423570985008687907853269984665640564039457584007913129639935";
     const tokenAddress = tokenData[i].tokenAddress;
-    const tokenContract = initContract(tokenAddress, IVTDemoABI.abi);
+    const tokenContractWithAbiIVTDemoABI =
+      useTokenContractWithAbiIVTDemoABI(tokenAddress);
     const overrides = {
       gasPrice: networkData.defaultGasPrice,
       gasLimit: 200000,
     };
-    const tx = await tokenContract.approve(
-      tokenData[i].cTokenAddress,
-      amountStr,
-      overrides
-    );
+    const tx = await tokenContractWithAbiIVTDemoABI.methods
+      .approve(tokenData[i].cTokenAddress, amountStr, overrides)
+      .send({ from: account || undefined });
 
     // const web3 = new ethers.providers.Web3Provider(window["ethereum"]);
     await web3.waitForTransaction(tx.hash);
@@ -1127,7 +1233,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
     tempTokenData[i].approved = true;
     setTokenData(tempTokenData);
 
-    // CONFIRM BELOW !! IT EXISTS IN ANGULAR
+    // The code below exists in angular, double check.
     // this.cdr.detectChanges();
     // this.cdr.markForCheck();
 
@@ -1145,47 +1251,8 @@ export const TxnSection: React.FC<Props> = ({}) => {
     erc20Approve(0, "withdraw");
   };
 
-  const getVaultApys = async (vaultSymbol: any) => {
-    try {
-      const allApys = await getOmniSteaksApys();
-
-      // below exists in angular, but unused var
-      // let apy = allApys[vaultSymbol]["totalApy"];
-
-      let obj = { ...dataObj };
-
-      if (typeof allApys != "undefined") {
-        let apy = allApys[vaultSymbol]["totalApy"];
-        setVaultApy(apy);
-        obj.limeApy = allApys["omnifarm-USDO-LIME"]["totalApy"];
-        obj.popenApy = allApys["omnifarm-usdo-popen"]["totalApy"];
-        obj.landApy = allApys["omnifarm-USDO-LAND"]["totalApy"];
-        obj.rosnApy = allApys["omnifarm-USDO-ROSN"]["totalApy"];
-        obj.gfxApy = allApys["omnifarm-USDO-GFX"]["totalApy"];
-        obj.busdApy = allApys["omnifarm-usdo-busd-FET"]["totalApy"];
-        obj.anyMattApy = allApys["omnifarm-usdo-busd-anyMTLX"]["totalApy"];
-        obj.hyveApy = allApys["omnifarm-USDO-HYVE"]["totalApy"];
-      } else {
-        setVaultApy(0);
-        obj.limeApy = 0;
-        obj.popenApy = 0;
-        obj.landApy = 0;
-        obj.rosnApy = 0;
-        obj.gfxApy = 0;
-        obj.busdApy = 0;
-        obj.anyMattApy = 0;
-        obj.hyveApy = 0;
-      }
-
-      setDataObj(obj);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
   const initializeProvider = async () => {
     try {
-      // const web3 = new ethers.providers.Web3Provider(window["ethereum"]);
       const network = await web3.getNetwork();
       let tvl = await getTVL();
 
@@ -1213,39 +1280,9 @@ export const TxnSection: React.FC<Props> = ({}) => {
     }
   };
 
-  const updateBalanceEffect = () => {
-    const secondsInYear = 31622400;
-    const updateIntervalInSec = 7;
-    const myPolling = setInterval(() => {
-      let obj = { ...setupData };
-      if (
-        toDecimal(setupData.totalSupplyBalance, 7) > 0 &&
-        apyData.posApy > 0
-      ) {
-        const posApyPerSec = apyData.posApy / secondsInYear;
-        const posApyPerInterval = posApyPerSec * updateIntervalInSec;
-        obj.totalSupplyBalance =
-          obj.totalSupplyBalance +
-          (obj.totalSupplyBalance * posApyPerInterval) / 100;
-      }
-      if (
-        toDecimal(setupData.totalBorrowBalance, 7) > 0 &&
-        apyData.negApy > 0
-      ) {
-        const negApyPerSec = apyData.negApy / secondsInYear;
-        const negApyPerInterval = negApyPerSec * updateIntervalInSec;
-        obj.totalBorrowBalance =
-          obj.totalBorrowBalance +
-          (obj.totalBorrowBalance * negApyPerInterval) / 100;
-      }
-      setSetupData(obj);
-    }, updateIntervalInSec * 1000);
-    setPolling(myPolling);
-  };
-
-  // useEffect(() => {
-  //   getVaultApys("omnifarm-ocp-usdo");
-  // }, []);
+  useEffect(() => {
+    getVaultApys("omnifarm-ocp-usdo");
+  }, []);
 
   // useEffect(() => {
   //   if (!!web3) setup();
@@ -1254,6 +1291,10 @@ export const TxnSection: React.FC<Props> = ({}) => {
   // useEffect(() => {
   //   return updateBalanceEffect();
   // }, []);
+
+  // useEffect(() => {
+  //   setup();
+  // }, [selectedComp]);
 
   return (
     <>

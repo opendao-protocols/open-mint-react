@@ -7,10 +7,12 @@ import { useState } from "react";
 import BigNumber from "bignumber.js";
 import { ethers } from "ethers";
 import { blockchainConstants } from "../lib/constants/blockchain-constants";
+import { Web3Wrapper } from "../web3";
+import { AuthProvider } from "../components/utils/AuthContext";
 
 function MyApp({ Component, pageProps }: any) {
   const [currentAccount, setCurrentAccount] = useState<string>("");
-  const [networkString, setNetworkString] = useState<string>("");
+  const [networkString, setNetworkString] = useState<string>("BSC");
   const [contractAddresses, setContractAddresses] = useState<any>({});
   // {
   //   [key: string]: any;
@@ -194,9 +196,13 @@ function MyApp({ Component, pageProps }: any) {
 
   return (
     <>
-      <AppContext.Provider value={injectedGlobalContext}>
-        <Component {...pageProps} />
-      </AppContext.Provider>
+      <Web3Wrapper>
+        <AuthProvider>
+          <AppContext.Provider value={injectedGlobalContext}>
+            <Component {...pageProps} />
+          </AppContext.Provider>
+        </AuthProvider>
+      </Web3Wrapper>
     </>
   );
 }

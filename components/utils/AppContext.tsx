@@ -83,7 +83,7 @@ export interface ContextType {
 const AppContext = createContext<ContextType>({
   currentAccount: "",
   setCurrentAccount: () => {},
-  networkString: "",
+  networkString: "BSC",
   setNetworkString: () => {},
   contractAddresses: {},
   setContractAddresses: () => {},

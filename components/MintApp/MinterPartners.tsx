@@ -32,8 +32,9 @@ export const MinterPartners: React.FC<Props> = ({}) => {
     }
   };
 
-  useEffect(() => {
-    if (networkString === "BSC") {
+  useEffect(
+    () => {
+      // if (networkString === "BSC") {
       setContractAddresses(blockchainConstants["bsc"]);
       try {
         const tempVaultLists: {
@@ -41,19 +42,30 @@ export const MinterPartners: React.FC<Props> = ({}) => {
           name: any;
           compAdd: any;
         }[] = [];
-        for (let i = 0; i < contractAddresses["mintingVaults"].length; i++) {
+        for (
+          let i = 0;
+          i < blockchainConstants["bsc"]["mintingVaults"].length;
+          i++
+        ) {
           tempVaultLists.push({
             id: i,
-            name: contractAddresses["mintingVaults"][i]["stakeTokenSymbol"],
-            compAdd: contractAddresses["mintingVaults"][i]["comptroller"],
+            name: blockchainConstants["bsc"]["mintingVaults"][i][
+              "stakeTokenSymbol"
+            ],
+            compAdd:
+              blockchainConstants["bsc"]["mintingVaults"][i]["comptroller"],
           });
         }
         setVaultLists(tempVaultLists);
       } catch (error) {
         console.log("MinterPartners UseEffect error:", error);
       }
-    }
-  }, [networkString, contractAddresses]);
+      // }
+    },
+    [
+      // networkString, contractAddresses
+    ]
+  );
 
   return (
     <>

@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import { Footer } from "../Common/Footer";
-import { Header } from "../Common/Header";
+// import { Header } from "../Common/Header1";
 import AppContext from "../utils/AppContext";
 import { MinterPartners } from "./MinterPartners";
 import { TxnSection } from "./TxnSection";
@@ -16,6 +16,7 @@ import { blockchainConstants } from "../../lib/constants/blockchain-constants";
 import { ConnectWalletModal } from "./ConnectWalletModal";
 import { SelectNetworkModal } from "./SelectNetworkModal";
 import { InfoAndTvl } from "./InfoAndTvl";
+import { Header } from "../Common/Header";
 declare var window: any;
 
 interface Props {}
@@ -23,7 +24,7 @@ interface Props {}
 export const MintApp: React.FC<Props> = ({}) => {
   const {
     currentAccount,
-    setCurrentAccount,
+    // setCurrentAccount,
     networkString,
     setNetworkString,
     setContractAddresses,
