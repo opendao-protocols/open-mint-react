@@ -111,20 +111,6 @@ function MyApp({ Component, pageProps }: any) {
 
   const [web3, setWeb3] = useState<any>();
 
-  //  Below declared in angular code, but unused
-
-  // const [provideLiquidityLinks] = useState([
-  //   "https://bsc.valuedefi.io/#/add/0xb632bed9661bc88fc5fd89d3cb48da365991f730",
-  //   "https://exchange.pancakeswap.finance/#/add/0x5801d0e1c7d977d78e4890880b8e579eb4943276/0x2ed076fc51685e7eb12804f8c10210cd305792e3",
-  // ]);
-
-  // const [liquidityPoolNames] = useState(["USDO/USDT Pool", "USDO/EURO Pool"]);
-
-  // const [swapLinks] = useState([
-  //   "https://bsc.valuedefi.io/#/vpeg-swap?inputCurrency=0x55d398326f99059fF775485246999027B3197955&outputCurrency=0x5801d0e1c7d977d78e4890880b8e579eb4943276",
-  //   "https://exchange.pancakeswap.finance/#/swap?inputCurrency=0x5801d0e1c7d977d78e4890880b8e579eb4943276&outputCurrency=0x2eD076fC51685E7EB12804F8c10210cd305792E3",
-  // ]);
-
   const injectedGlobalContext = {
     currentAccount,
     setCurrentAccount,

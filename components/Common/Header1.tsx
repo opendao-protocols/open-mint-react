@@ -3,47 +3,20 @@ import { truncateAddress } from "../../lib/utils";
 import AppContext from "../utils/AppContext";
 import { blockchainConstants } from "../../lib/constants/blockchain-constants";
 import { ethers } from "ethers";
-// import {
-//   useCookies,
-//   withCookies,
-//   Cookies as cookies,
-//   cookie,
-// } from "react-cookie";
-// import Cookies from "universal-cookie";
-// cookies
-// cookies
-// import Cookies from "js-cookie";
 
 declare var window: any;
 
-interface Props {
-  // currentAccount: string;
-  // networkString: string;
-  // disconnectWallet: () => void;
-}
+interface Props {}
 
-export const Header: React.FC<Props> = (
-  {
-    // currentAccount,
-    // networkString,
-    // disconnectWallet,
-  }
-) => {
+export const OldHeader: React.FC<Props> = ({}) => {
   const {
     currentAccount,
     setCurrentAccount,
     networkString,
     setContractAddresses,
     setNetworkString,
-    web3,
     setWeb3,
   } = useContext(AppContext);
-
-  // const [cookies, setCookie, removeCookie] = useCookies([
-  //   "connected_wallet_name",
-  // ]);
-
-  // const cookies = new Cookies();
 
   const disconnectWallet = async () => {
     setCurrentAccount("");

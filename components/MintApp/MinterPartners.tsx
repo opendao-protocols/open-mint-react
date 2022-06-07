@@ -2,10 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { blockchainConstants } from "../../lib/constants/blockchain-constants";
 import AppContext from "../utils/AppContext";
 
-interface Props {
-  // myInfo?: string | null;
-  // activeHeader: string;
-}
+interface Props {}
 
 export const MinterPartners: React.FC<Props> = ({}) => {
   const {

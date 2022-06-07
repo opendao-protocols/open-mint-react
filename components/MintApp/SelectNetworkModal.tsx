@@ -8,7 +8,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import AppContext from "../utils/AppContext";
-import { ethers } from "ethers";
+// import { ethers } from "ethers";
 declare var window: any;
 import { params as chainParams } from "./../../lib/constants/chain-params";
 

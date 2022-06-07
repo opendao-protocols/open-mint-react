@@ -3,10 +3,7 @@ import { localeString } from "../../lib/utils";
 import AppContext from "../utils/AppContext";
 import { getTVL } from "../../lib/hooks";
 
-interface Props {
-  // myInfo?: string | null;
-  // activeHeader: string;
-}
+interface Props {}
 
 export const InfoAndTvl: React.FC<Props> = ({}) => {
   const {

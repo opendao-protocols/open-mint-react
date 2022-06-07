@@ -2,9 +2,7 @@
 import React from "react";
 import Typography from "@mui/material/Typography";
 
-// import { useTranslation } from 'translation';
 import { Connector } from "../../../web3";
-// import { Icon } from "../../Icon";
 import { WALLETS } from "../constants";
 import { useStyles } from "./styles";
 

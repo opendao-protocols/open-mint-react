@@ -4,16 +4,6 @@ import { Footer } from "../Common/Footer";
 import AppContext from "../utils/AppContext";
 import { MinterPartners } from "./MinterPartners";
 import { TxnSection } from "./TxnSection";
-import {
-  Modal,
-  ModalContent,
-  ModalOverlay,
-  ModalBody,
-  Box,
-  Text,
-} from "@chakra-ui/react";
-import { blockchainConstants } from "../../lib/constants/blockchain-constants";
-import { ConnectWalletModal } from "./ConnectWalletModal";
 import { SelectNetworkModal } from "./SelectNetworkModal";
 import { InfoAndTvl } from "./InfoAndTvl";
 import { Header } from "../Common/Header";
@@ -24,7 +14,6 @@ interface Props {}
 export const MintApp: React.FC<Props> = ({}) => {
   const {
     currentAccount,
-    // setCurrentAccount,
     networkString,
     setNetworkString,
     setContractAddresses,
