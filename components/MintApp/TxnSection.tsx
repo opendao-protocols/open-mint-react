@@ -138,7 +138,11 @@ export const TxnSection: React.FC<Props> = ({}) => {
 
   const [cTokenAddress, setCTokenAddress] = useState<string>("");
 
-  let cTokenContract = useCTokenContract(cTokenAddress);
+  // let cTokenContract = useCTokenContract(cTokenAddress);
+
+  const [initToken, setInitToken] = useState();
+
+  // const cTokenContract = useCTokenContractWithAbiCErc20Delegator(initToken);
 
   ////////////////////////////////////////////////////////
   ///////////////// STATE FUNCTION ///////////////////////
@@ -552,10 +556,10 @@ export const TxnSection: React.FC<Props> = ({}) => {
       gasPrice: networkData.defaultGasPrice,
       gasLimit: 1000000,
     };
-    const tx = await cTokenContract.methods
-      .mint(amountInDec, overrides)
-      .send({ from: account });
-    await web3.waitForTransaction(tx.hash);
+    // const tx = await cTokenContract.methods
+    //   .mint(amountInDec, overrides)
+    //   .send({ from: account });
+    // await web3.waitForTransaction(tx.hash);
 
     if (
       tokenData[i].collateralFactor !== "0.00" &&
@@ -1076,116 +1080,116 @@ export const TxnSection: React.FC<Props> = ({}) => {
     return availableBorrow.toString();
   };
 
-  const initToken = async (token: any, i: number) => {
-    token.isListed = true;
+  // const initToken = async (token: any, i: number) => {
+  //   token.isListed = true;
 
-    const cTokenContract = useCTokenContractWithAbiCErc20Delegator(
-      token.cTokenAddress
-    );
-    let priceUsd = await getPrice(token.cTokenAddress);
-    token.priceUsd =
-      token.cTokenAddress == "0x606F53B25984D60559b21BEE6c51E2FE93137852"
-        ? parseFloat(priceUsd).toFixed(0)
-        : parseFloat(priceUsd).toFixed(18);
-    getUserSupplyBalance(cTokenContract, token).then(
-      (cTokenSupplyBalance: any) => {
-        token.cTokenSupplyBalance = parseFloat(cTokenSupplyBalance);
-        token.cTokenSupplyBalanceUSD = getUserSupplyBalanceUSD(token);
-      }
-    );
-    getUserBorrowBalance(cTokenContract, token).then(
-      (tokenBorrowBalance: any) => {
-        token.tokenBorrowBalance = parseFloat(tokenBorrowBalance);
-        token.tokenBorrowBalanceUSD = getUserBorrowBalanceUSD(token);
-      }
-    );
-    // });
-    cTokenContract.methods
-      .name()
-      .call()
-      .then((cTokenName: string) => {
-        token.cTokenName = cTokenName;
-      });
-    cTokenContract.methods
-      .underlying()
-      .call()
-      .then((underlyingTokenAddress: string) => {
-        token.tokenAddress = underlyingTokenAddress;
-        const tokenContract = useTokenContractWithAbiIVTDemoABI(
-          underlyingTokenAddress
-        );
-        tokenContract.methods
-          .decimals()
-          .call()
-          .then(async (decimals: any) => {
-            const divBy = 10 ** parseFloat(decimals);
-            token.erc20Decimals = decimals;
-            getUserTokenBalance(tokenContract).then((tokenBalance) => {
-              token.tokenBalance = parseFloat(tokenBalance) / divBy;
-              token.tokenBalanceBN = new BigNumber(tokenBalance.toString());
-              afterInitToken(token, i);
-            });
-            tokenContract.methods
-              .totalSupply()
-              .call()
-              .then((totalSupply: any) => {
-                totalSupply = getNumber(totalSupply);
-                token.erc20TotalSupply =
-                  parseFloat(totalSupply) /
-                  10 ** parseFloat(token.erc20Decimals);
-              });
-          });
-        tokenContract.methods
-          .symbol()
-          .call()
-          .then((symbol: any) => {
-            symbol = symbol;
-            token.symbol = cTokenAddressSymabolMapping[token.cTokenAddress]
-              ? cTokenAddressSymabolMapping[token.cTokenAddress]
-              : symbol;
-            token.text = cTokenAddressSymabolMapping[token.cTokenAddress]
-              ? cTokenAddressSymabolMapping[token.cTokenAddress]
-              : symbol;
-          });
-        tokenContract
-          .name()
-          .call()
-          .then(async (name: any) => {
-            token.name = name;
-          });
-        checkApproved(tokenContract, token.cTokenAddress).then((approved) => {
-          token.approved = approved;
-        });
-        getCtokenBorrows(cTokenContract, tokenContract).then(
-          (totalErc20Borrows: any) => {
-            token.totalErc20Borrows = totalErc20Borrows;
-            token.totalErc20BorrowsUsd =
-              totalErc20Borrows * parseFloat(token.priceUsd);
-          }
-        );
-        getCtokenSupply(cTokenContract, tokenContract).then(
-          (totalErc20Supply: any) => {
-            token.totalErc20Supply = totalErc20Supply;
-            token.totalErc20SupplyUsd =
-              totalErc20Supply * parseFloat(token.priceUsd);
-          }
-        );
-      });
-    getCollateralFactor(token.cTokenAddress).then((collateralFactor: any) => {
-      token.collateralFactor = collateralFactor;
-    });
-    getAPY(cTokenContract).then((apy: any) => {
-      token.borrowApy = apy[0];
-      token.supplyApy = apy[1];
-    });
-    getUtilizationRate(cTokenContract).then((utilizationRate: any) => {
-      token.utilizationRate = parseFloat(utilizationRate) / 10 ** 18;
-    });
-    getAvailableBorrow(cTokenContract).then((availableBorrow: any) => {
-      token.availableBorrow = availableBorrow;
-      token.availableBorrowUSD = getAvailableBorrowUSD(token);
-    });
-  };
+  //   const cTokenContract = useCTokenContractWithAbiCErc20Delegator(
+  //     token.cTokenAddress
+  //   );
+  //   let priceUsd = await getPrice(token.cTokenAddress);
+  //   token.priceUsd =
+  //     token.cTokenAddress == "0x606F53B25984D60559b21BEE6c51E2FE93137852"
+  //       ? parseFloat(priceUsd).toFixed(0)
+  //       : parseFloat(priceUsd).toFixed(18);
+  //   getUserSupplyBalance(cTokenContract, token).then(
+  //     (cTokenSupplyBalance: any) => {
+  //       token.cTokenSupplyBalance = parseFloat(cTokenSupplyBalance);
+  //       token.cTokenSupplyBalanceUSD = getUserSupplyBalanceUSD(token);
+  //     }
+  //   );
+  //   getUserBorrowBalance(cTokenContract, token).then(
+  //     (tokenBorrowBalance: any) => {
+  //       token.tokenBorrowBalance = parseFloat(tokenBorrowBalance);
+  //       token.tokenBorrowBalanceUSD = getUserBorrowBalanceUSD(token);
+  //     }
+  //   );
+  //   // });
+  //   cTokenContract.methods
+  //     .name()
+  //     .call()
+  //     .then((cTokenName: string) => {
+  //       token.cTokenName = cTokenName;
+  //     });
+  //   cTokenContract.methods
+  //     .underlying()
+  //     .call()
+  //     .then((underlyingTokenAddress: string) => {
+  //       token.tokenAddress = underlyingTokenAddress;
+  //       const tokenContract = useTokenContractWithAbiIVTDemoABI(
+  //         underlyingTokenAddress
+  //       );
+  //       tokenContract.methods
+  //         .decimals()
+  //         .call()
+  //         .then(async (decimals: any) => {
+  //           const divBy = 10 ** parseFloat(decimals);
+  //           token.erc20Decimals = decimals;
+  //           getUserTokenBalance(tokenContract).then((tokenBalance) => {
+  //             token.tokenBalance = parseFloat(tokenBalance) / divBy;
+  //             token.tokenBalanceBN = new BigNumber(tokenBalance.toString());
+  //             afterInitToken(token, i);
+  //           });
+  //           tokenContract.methods
+  //             .totalSupply()
+  //             .call()
+  //             .then((totalSupply: any) => {
+  //               totalSupply = getNumber(totalSupply);
+  //               token.erc20TotalSupply =
+  //                 parseFloat(totalSupply) /
+  //                 10 ** parseFloat(token.erc20Decimals);
+  //             });
+  //         });
+  //       tokenContract.methods
+  //         .symbol()
+  //         .call()
+  //         .then((symbol: any) => {
+  //           symbol = symbol;
+  //           token.symbol = cTokenAddressSymabolMapping[token.cTokenAddress]
+  //             ? cTokenAddressSymabolMapping[token.cTokenAddress]
+  //             : symbol;
+  //           token.text = cTokenAddressSymabolMapping[token.cTokenAddress]
+  //             ? cTokenAddressSymabolMapping[token.cTokenAddress]
+  //             : symbol;
+  //         });
+  //       tokenContract
+  //         .name()
+  //         .call()
+  //         .then(async (name: any) => {
+  //           token.name = name;
+  //         });
+  //       checkApproved(tokenContract, token.cTokenAddress).then((approved) => {
+  //         token.approved = approved;
+  //       });
+  //       getCtokenBorrows(cTokenContract, tokenContract).then(
+  //         (totalErc20Borrows: any) => {
+  //           token.totalErc20Borrows = totalErc20Borrows;
+  //           token.totalErc20BorrowsUsd =
+  //             totalErc20Borrows * parseFloat(token.priceUsd);
+  //         }
+  //       );
+  //       getCtokenSupply(cTokenContract, tokenContract).then(
+  //         (totalErc20Supply: any) => {
+  //           token.totalErc20Supply = totalErc20Supply;
+  //           token.totalErc20SupplyUsd =
+  //             totalErc20Supply * parseFloat(token.priceUsd);
+  //         }
+  //       );
+  //     });
+  //   getCollateralFactor(token.cTokenAddress).then((collateralFactor: any) => {
+  //     token.collateralFactor = collateralFactor;
+  //   });
+  //   getAPY(cTokenContract).then((apy: any) => {
+  //     token.borrowApy = apy[0];
+  //     token.supplyApy = apy[1];
+  //   });
+  //   getUtilizationRate(cTokenContract).then((utilizationRate: any) => {
+  //     token.utilizationRate = parseFloat(utilizationRate) / 10 ** 18;
+  //   });
+  //   getAvailableBorrow(cTokenContract).then((availableBorrow: any) => {
+  //     token.availableBorrow = availableBorrow;
+  //     token.availableBorrowUSD = getAvailableBorrowUSD(token);
+  //   });
+  // };
 
   const fetchTokens = async (allListedTokens: any) => {
     let mytokenData: any = [];
@@ -1197,7 +1201,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
       token.approved = false;
       token.cTokenAddress = allListedTokens[i];
       // include await below maybe, thoguh not in angular code.
-      initToken(token, i);
+      // initToken(token, i);
       tokenData.push(token);
     }
     setTokenData(mytokenData);
