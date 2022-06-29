@@ -10,24 +10,22 @@ export const RPC_URLS: {
     "https://bsc-dataseed1.defibit.io",
     "https://bsc-dataseed1.ninicoin.io",
   ],
-  "56": [
-    "https://data-seed-prebsc-1-s1.binance.org:8545",
-    "https://data-seed-prebsc-2-s1.binance.org:8545",
-    "https://data-seed-prebsc-1-s2.binance.org:8545",
+  "137": [
+    "https://polygon-rpc.com/"
   ],
 };
 
-export const CHAIN_ID = 56;
+export const CHAIN_ID = 137;
 
 export enum BscChainId {
-  "MAINNET" = 56,
+  "MAINNET" = 137,
   "TESTNET" = 97,
 }
 
 export const RPC_URL = sample(RPC_URLS[CHAIN_ID]) as string;
 
 export const BASE_BSC_SCAN_URLS = {
-  "56": "https://bscscan.com",
+  "137": "https://polygonscan.com",
   "97": "https://testnet.bscscan.com",
 };
 

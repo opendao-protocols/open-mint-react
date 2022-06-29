@@ -4,7 +4,7 @@ export const getTVL = async () => {
   try {
     let tvl: any;
     await axios
-      .get(`https://api-opendao.opendao.io/api/tvl/apps`)
+      .get(`https://api-opendao.opendao.io/api/tvl/minter/matic`)
       .then((res) => {
         tvl = res.data;
       });

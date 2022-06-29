@@ -11,7 +11,7 @@
 @import "../node_modules/ag-grid-community/dist/styles/ag-theme-alpine.css";
 @import "~ag-grid-community/src/styles/ag-grid.scss";
 @import "~ag-grid-community/src/styles/ag-theme-alpine/sass/ag-theme-alpine-mixin.scss";
-
+@import "react-sweet-progress/lib/style.css";
 @font-face{
     font-family: SF Compact Display;
     src: url('/assets/fonts/SF-Compact-Display-Regular.ttf');
@@ -250,6 +250,7 @@ label {
     }
     .vault__subhead-text {
       vertical-align: middle;
+      text-align: center;
       font-size: 0.6rem;
       letter-spacing: 1px;
       font-weight: 600;
@@ -874,6 +875,29 @@ i {
   color: #bb76d8;
   // margin-left: 2rem;
   font-weight: 550;
+}
+.my-auto {
+  text-align: center;
+}
+
+//styles.scss
+
+.progressWrapper {
+  border: 3px solid blue;
+}
+
+.progressContainer {
+  background-color: pink;
+}
+
+.progressBarCompleted {
+  background-color: lightblue;
+  width: 80%;
+}
+
+.progressLabel {
+  font-size: 20px;
+  color: green;
 }
 /*MEDIA QUERIES*/
 /*@media (min-width: 1200px) {

@@ -4,7 +4,11 @@ import { useWeb3Account } from "../../web3";
 import useEagerConnect from "../useEagerConnect";
 import useInactiveListener from "../useInactiveListener";
 
-const Web3ReactManager: React.FC = ({ children }) => {
+interface Props {
+  children: React.ReactNode;
+}
+
+const Web3ReactManager: React.FC<Props> = ({ children }) => {
   const context = useWeb3Account();
   const {
     connector,

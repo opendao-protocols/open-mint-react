@@ -77,13 +77,13 @@ export const ConnectWalletModal: React.FC<Props> = ({ isOpen }) => {
     // console.log("MY chainId", chainId);
 
     if (
-      chainId == "0x38" // 56
+      chainId == "0x89" // 56
     ) {
-      setNetworkString("BSC");
-      setContractAddresses(blockchainConstants["bsc"]);
+      setNetworkString("MATIC");
+      setContractAddresses(blockchainConstants["polygon"]);
     } else {
-      setNetworkString("");
-      setContractAddresses({});
+      setNetworkString("POLYGON");
+      setContractAddresses(blockchainConstants["polygon"]);
     }
 
     ethereum.on("chainChanged", handleChainChanged);

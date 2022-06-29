@@ -8,7 +8,6 @@ import {
   Text,
 } from "@chakra-ui/react";
 import AppContext from "../utils/AppContext";
-// import { ethers } from "ethers";
 declare var window: any;
 import { params as chainParams } from "./../../lib/constants/chain-params";
 
@@ -30,8 +29,8 @@ export const SelectNetworkModal: React.FC<Props> = ({ isOpen }) => {
   const addNetworkToWallet = async (chainId: string) => {
     // const web3 = new ethers.providers.Web3Provider(window["ethereum"]);
     const myNetwork = await web3.getNetwork();
-    if (myNetwork.chainId == 56) {
-      setNetworkString("BSC");
+    if (myNetwork.chainId == 137) {
+      setNetworkString("POLYGON");
     }
     const chainParam = { ...chainParams[chainId] };
     if (!!web3 && !!web3.provider && !!web3.provider.request) {
@@ -54,10 +53,10 @@ export const SelectNetworkModal: React.FC<Props> = ({ isOpen }) => {
             <a
               className="asset btn wallet-connect-btns"
               onClick={() => {
-                addNetworkToWallet("56");
+                addNetworkToWallet("137");
               }}
             >
-              BSC
+              POLYGON
             </a>
           </Box>
         </ModalBody>

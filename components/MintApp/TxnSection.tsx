@@ -1,158 +1,147 @@
-import { Switch } from "@chakra-ui/react";
 import BigNumber from "bignumber.js";
 import { ethers } from "ethers";
-import React, { useContext, useEffect, useState } from "react";
-import { blockchainConstants } from "../../lib/constants/blockchain-constants";
+import NumberFormat from "react-number-format";
+import PuffLoader from "react-spinners/PuffLoader";
+import React, { useEffect, useState, useCallback, CSSProperties } from "react";
+import { useMarkets } from "../../lib/hooks/useMarkets";
+import { useMarketsUser } from "../../lib/hooks/useMarketsUser";
+import { Asset } from "../../lib/types";
+import { DEFAULT_GAS_PRICE } from "../../config";
+
+import Switch from "react-switch";
+import { Button, Input } from "@chakra-ui/react";
+import { Progress } from 'react-sweet-progress';
+
 import {
   getAbsoluteValueWithDecimals,
   localeString,
   toBN,
   toDecimal,
+  weiToNum,
   tokenToDecimals,
 } from "../../lib/utils";
-import AppContext from "../utils/AppContext";
-import { cTokenAddressSymabolMapping } from "../../lib/constants/ctokenaddress-symbol";
 
-import //* as
-ERC20Detailed from "./../../public/assets/contracts/ERC20Detailed.json";
-import * as CErc20Immutable from "./../../public/assets/contracts/CErc20Immutable.json";
-import // * as
-ComptrollerV3 from "./../../public/assets/contracts/ComptrollerV3.json";
-import // * as
-Comptroller from "./../../public/assets/contracts/Comptroller.json";
-import // * as
-Comp from "./../../public/assets/contracts/Comp.json";
-import //* as
-UniswapOracleTWAP from "./../../public/assets/contracts/UniswapOracleTWAP.json";
-import //* as
-CErc20Delegator from "./../../public/assets/contracts/CErc20Delegator.json";
-import //* as
-IVTDemoABI from "./../../public/assets/contracts/IVTDemoABI.json";
-import axios from "axios";
-import { getOmniSteaksApys, getTVL } from "../../lib/hooks";
-import { useContractByAddress } from "../../lib/hooks/contract-hooks";
 import {
-  useCompContract,
   useComptrollerContract,
   useCTokenContract,
-  useCTokenContractWithAbiCErc20Delegator,
   usePriceOracleProxyContract,
   useTokenContract,
-  useTokenContractWithAbiIVTDemoABI,
-  useWeb3Contract,
 } from "../../contracts/getters";
 import { AuthContext } from "../utils/AuthContext";
 
-declare var window: any;
+interface Props {
+  data: string;
+}
 
-interface Props {}
+const override: CSSProperties = {
+  display: "block",
+  margin: "0 auto",
+  borderColor: "red",
+};
 
-export const TxnSection: React.FC<Props> = ({}) => {
-  const {
-    currentAccount,
-    setCurrentAccount,
-    networkString,
-    setNetworkString,
-    contractAddresses,
-    setContractAddresses,
-    selectedComp,
-    setSelectedComp,
-    tokenData,
-    setTokenData,
-    dataObj,
-    setDataObj,
-    setupData,
-    setSetupData,
-    totalCashDeployed,
-    setTotalCashDeployed,
-    farmDataObj,
-    setFarmDataObj,
-    bonusApy,
-    setBonusApy,
-    availabletoBorrowUser,
-    setAvailabletoBorrowUser,
-    repayMaxAmount,
-    setRepayMaxAmount,
-    networkData,
-    setNetworkData,
-    Contracts,
-    setContracts,
-    adminAddress,
-    setAdminAddress,
-    DECIMAL_18,
-    setDECIMAL_18,
-    callCount,
-    setCallCount,
-    numListedMarkets,
-    setNumListedMarkets,
-    borrowPausedTokens,
-    setBorrowPausedTokens,
-    borrowPausedTokensSymbols,
-    setBorrowPausedTokensSymbols,
-    accountLiquidity,
-    setAccountLiquidity,
-    compPrice,
-    setCompPrice,
-    compRate,
-    setCompRate,
-    compAddress,
-    setCompAddress,
-    apyData,
-    setApyData,
-    totalCashLoans,
-    setTotalCashLoans,
-    usdoTokenDetails,
-    setUsdoTokenDetails,
-    loadComplete,
-    setLoadComplete,
-    collateralSupplyEnable,
-    setCollateralSupplyEnable,
-    collateralBorrowEnable,
-    setCollateralBorrowEnable,
-    vaultApy,
-    setVaultApy,
-    polling,
-    setPolling,
-    web3,
-    setWeb3,
-  } = useContext(AppContext);
+export const TxnSection: React.FC<Props> = (props: Props) => {
+
+  const [stakingInput, setStakingInput] = useState<string>("");
+  const [withdrawStakingInput, setWithdrawStakingInput] = useState<string>("");
+  const [mintInput, setMintInput] = useState<string>("");
+  const [repayInput, setRepayInput] = useState<string>("");
+  const [lendInput, setLendInput] = useState<string>("");
+  const [userBorrowLimit, setUserBorrowLimit] = useState<any>();
+  const [userBorrowPercent, setBorrowPercent] = useState<any>();
+
+
+  const [withdrawLendingInput, setWithdraLendingInput] = useState<string>("");
 
   const { account } = React.useContext(AuthContext);
+  const { markets } = useMarkets();
+  const { userMarketInfo, userTotalBorrowLimit, userTotalBorrowBalance } = useMarketsUser();
+
+  const [lendingMarketData, setLendingMarketData] = useState<any>({});
+  const [stakingMarketData, setStakingMarketData] = useState<any>({});
+  const [lendingUserMarketData, setLendingUserMarketData] = useState<any>({});
+  const [stakingUserMarketData, setStakingUserMarketData] = useState<any>({});
+  const [marketData, setMarketData] = useState<any>({});
+  const [isEnableCollateral, setIsEnableCollateral] = useState<any>();
 
   const [showPuffCakeVaultContent, setShowPuffCakeVaultContent] =
     useState<boolean>(true);
 
-  //
-  let comptrollerContract = useComptrollerContract(selectedComp);
-  let web3Contract = useWeb3Contract(selectedComp);
-
-  let compContract = useCompContract(compAddress);
+  // let web3Contract = useWeb3Contract(selectedComp);
 
   const [oracleAddress, setOracleAddress] = useState<string>("");
-
   let priceOracleProxyContract = usePriceOracleProxyContract(oracleAddress);
 
-  const [tokenAddress, setTokenAddress] = useState<string>("");
+  let lendingTokenContract = useTokenContract(
+    lendingMarketData.underlyingAddress
+  );
+  let stakingTokenContract = useTokenContract(
+    stakingMarketData.underlyingAddress
+  );
+  let lendingCTokenContract = useCTokenContract(lendingMarketData.address);
+  let stakingCTokenContract = useCTokenContract(stakingMarketData.address);
 
-  let TokenContract = useTokenContract(tokenAddress);
+  const [dataObj, setDataObj] = useState({
+    subtabType: "stake",
+    viewFarmType: "stake",
+  });
+  const [formData, setFormData] = useState<any>({});
+  const [isEnabledStake, setIsEnabledStake] = useState<any>(false);
+  const [isEnabledLend, setIsEnabledLend] = useState<any>(false);
+  let comptrollerContract = useComptrollerContract(props.data);
 
-  const [cTokenAddress, setCTokenAddress] = useState<string>("");
+  useEffect(() => {
+    // const currentComp = localStorage.getItem("currentComp");
+    // if (currentComp && markets.length) {
+    // const compAdd = JSON.parse(currentComp);
+    let marketData = markets.filter(
+      (element) =>
+        element.compAddress.toLowerCase() === props.data.toLowerCase()
+    );
+    if (marketData.length) {
+      setMarketData(marketData[0]);
+      setLendingMarketData(marketData[0]);
+      setStakingMarketData(marketData[1]);
+    }
+    // }
+  }, [props.data, userMarketInfo, account]);
 
-  // let cTokenContract = useCTokenContract(cTokenAddress);
+  useEffect(() => {
+    (async () => {
+      let marketData = userMarketInfo.filter(
+        (element) =>
+          element.compAddress.toLowerCase() === props.data.toLowerCase()
+      );
+      if (marketData.length) {
+        setLendingUserMarketData(marketData[0]);
+        setStakingUserMarketData(marketData[1]);
+      }
+      setIsEnabledStake(stakingUserMarketData.isEnabled);
+      setIsEnabledLend(lendingUserMarketData.isEnabled);
+      let borrowLimit = new BigNumber(userTotalBorrowLimit).div((new BigNumber(10).pow(lendingMarketData.underlyingDecimal)));
+      let a= (new BigNumber(userTotalBorrowLimit).div(1e18)).div(new BigNumber(userTotalBorrowBalance).div(lendingMarketData.underlyingDecimal))
+      setUserBorrowLimit(a)
+      setBorrowPercent(new BigNumber(userTotalBorrowBalance).div(userTotalBorrowLimit).times(100));
+      if (account && marketData.length) {
+        const assetsIn = account
+          ? await comptrollerContract.methods
+              .getAssetsIn(account?.address)
+              .call()
+          : [];
 
-  const [initToken, setInitToken] = useState();
-
-  // const cTokenContract = useCTokenContractWithAbiCErc20Delegator(initToken);
-
-  ////////////////////////////////////////////////////////
-  ///////////////// STATE FUNCTION ///////////////////////
-  ////////////////////////////////////////////////////////
+        const collateral = assetsIn
+          .map((address: any) => address.toLowerCase())
+          .includes(marketData[1].address.toLowerCase());
+        setIsEnableCollateral(collateral);
+      }
+    })();
+  }, [userMarketInfo, account, props.data]);
 
   const supplyMax = (i: number, p: number) => {
-    let amount = new BigNumber(tokenData[i].tokenBalance);
-    let obj = { ...farmDataObj };
-    obj["stakeInputAmt"] = amount.multipliedBy(toBN(p)).toFixed(4, 1);
-    setFarmDataObj(obj);
+    let amount = new BigNumber(stakingUserMarketData.walletBalance).div(
+      new BigNumber(10).pow(stakingMarketData.underlyingDecimal)
+    );
+    let inp = amount.multipliedBy(new BigNumber(p)).toFixed(2, 1);
+    setStakingInput(inp);
   };
 
   const viewMintTab = () => {
@@ -183,73 +172,69 @@ export const TxnSection: React.FC<Props> = ({}) => {
   };
 
   const withdrawMax = (i: number, p: number) => {
-    let amount = new BigNumber(tokenData[i].cTokenSupplyBalance);
-    let liquidity = new BigNumber(tokenData[i].availableBorrow);
-    let obj = { ...farmDataObj };
-    if (liquidity.isGreaterThanOrEqualTo(amount)) {
-      obj["withdrawInputAmt"] = amount
-        .multipliedBy(toBN(p))
-        .toFixed(tokenData[i].erc20Decimals);
-    } else {
-      obj["withdrawInputAmt"] = liquidity
-        .multipliedBy(toBN(p))
-        .toFixed(tokenData[i].erc20Decimals);
-    }
-    setFarmDataObj(obj);
+      let amount = new BigNumber(stakingUserMarketData.supplyBalanceUSD);
+      let liquidity = new BigNumber(stakingUserMarketData.availableLiquidity);
+      if (liquidity.isGreaterThanOrEqualTo(amount)) {
+        let inp = amount
+          .times(new BigNumber(p))
+        setWithdrawStakingInput(inp.toFixed())
+      } else {
+        let inp = liquidity
+          .times(new BigNumber(p))
+        setWithdrawStakingInput(inp.toFixed())
+      }
   };
 
   const borrowMax = (i: number, p: number) => {
-    let amount = new BigNumber(availabletoBorrowUser / tokenData[i].priceUsd);
-    let liquidity = new BigNumber(tokenData[i].availableBorrow);
-    let obj = { ...farmDataObj };
-    if (liquidity.isGreaterThanOrEqualTo(amount)) {
-      obj["mintInputAmt"] = amount.multipliedBy(toBN(p)).toFixed(2);
-    } else {
-      obj["mintInputAmt"] = liquidity.multipliedBy(toBN(p)).toFixed(2);
-    }
-    setFarmDataObj(obj);
+    //   let amount = new BigNumber(availabletoBorrowUser / markets[i].priceUsd);
+    //   let liquidity = new BigNumber(markets[i].availableBorrow);
+    //   let obj = { ...farmDataObj };
+    //   if (liquidity.isGreaterThanOrEqualTo(amount)) {
+    //     obj["mintInputAmt"] = amount.multipliedBy(toBN(p)).toFixed(2);
+    //   } else {
+    //     obj["mintInputAmt"] = liquidity.multipliedBy(toBN(p)).toFixed(2);
+    //   }
+    //   setFarmDataObj(obj);
   };
 
   const lendMax = (i: number, p: number) => {
-    let amount = new BigNumber(tokenData[i].tokenBalance);
-    let obj = { ...farmDataObj };
-    obj["lendInputAmt"] = amount.multipliedBy(toBN(p)).toFixed(4, 1);
-    setFarmDataObj(obj);
+    let amount = new BigNumber(lendingUserMarketData.walletBalance).div(
+      new BigNumber(10).pow(lendingMarketData.underlyingDecimal)
+    );
+    let inp = amount.multipliedBy(new BigNumber(p)).toFixed(2, 1);
+    setLendInput(inp);
   };
 
   const repayMax = (i: any | number, p: string | number | BigNumber) => {
-    let userBalanceBN = new BigNumber(tokenData[i].tokenBalanceBN);
-    let decimals = tokenData[i].erc20Decimals;
-    let userBalance = new BigNumber(userBalanceBN.div(10 ** decimals));
-    let maxRepayBalance = tokenData[i].tokenBorrowBalance;
-    let amount;
-    if (maxRepayBalance < userBalance) {
-      amount = new BigNumber(maxRepayBalance).multipliedBy(toBN(p));
-      setRepayMaxAmount(true);
-    } else {
-      amount = new BigNumber(userBalance).multipliedBy(toBN(p));
-      setRepayMaxAmount(false);
-    }
-    let obj = { ...farmDataObj };
-    obj["repayInputAmt"] = amount.toFixed(decimals);
-    setFarmDataObj(obj);
+    //   let userBalanceBN = new BigNumber(markets[i].tokenBalanceBN);
+    //   let decimals = markets[i].erc20Decimals;
+    //   let userBalance = new BigNumber(userBalanceBN.div(10 ** decimals));
+    //   let maxRepayBalance = markets[i].tokenBorrowBalance;
+    //   let amount;
+    //   if (maxRepayBalance < userBalance) {
+    //     amount = new BigNumber(maxRepayBalance).multipliedBy(toBN(p));
+    //     setRepayMaxAmount(true);
+    //   } else {
+    //     amount = new BigNumber(userBalance).multipliedBy(toBN(p));
+    //     setRepayMaxAmount(false);
+    //   }
+    //   let obj = { ...farmDataObj };
+    //   obj["repayInputAmt"] = amount.toFixed(decimals);
+    //   setFarmDataObj(obj);
   };
 
   const lendWithdrawMax = (i: number, p: number) => {
-    let amount = new BigNumber(tokenData[i].cTokenSupplyBalance);
-    let liquidity = new BigNumber(tokenData[i].availableBorrow);
-    let obj = { ...farmDataObj };
-
+    let amount = new BigNumber(lendingUserMarketData.supplyBalanceUSD);
+    let liquidity = new BigNumber(lendingUserMarketData.availableLiquidity);
     if (liquidity.isGreaterThanOrEqualTo(amount)) {
-      farmDataObj["lendWithdrawInputAmt"] = amount
-        .multipliedBy(toBN(p))
-        .toFixed(tokenData[i].erc20Decimals);
+      let inp = amount
+        .times(new BigNumber(p))
+      setWithdraLendingInput(inp.toFixed())
     } else {
-      farmDataObj["lendWithdrawInputAmt"] = liquidity
-        .multipliedBy(toBN(p))
-        .toFixed(tokenData[i].erc20Decimals);
+      let inp = liquidity
+        .times(new BigNumber(p))
+      setWithdraLendingInput(inp.toFixed())
     }
-    setFarmDataObj(obj);
   };
 
   const viewFarmType = (type: string) => {
@@ -281,1025 +266,199 @@ export const TxnSection: React.FC<Props> = ({}) => {
     setDataObj(obj);
   };
 
-  const getNumber = (hexNum: any) => {
-    return ethers.utils.bigNumberify(hexNum).toString();
+  const getUserBalanceUSD = (amount: any, price) => {
+    return new BigNumber(amount).times(price);
   };
 
-  const getUserSupplyBalanceUSD = (token: any) => {
-    return parseFloat(token.cTokenSupplyBalance) * parseFloat(token.priceUsd);
-  };
 
-  const getUserBorrowBalanceUSD = (token: any) => {
-    return parseFloat(token.tokenBorrowBalance) * parseFloat(token.priceUsd);
-  };
-
-  const getAvailableBorrowUSD = (token: any) => {
-    return parseFloat(token.availableBorrow) * parseFloat(token.priceUsd);
-  };
-
-  const calcNetApy = () => {
-    let posApy = 0;
-    let negApy = 0;
-    tokenData.forEach((token: any) => {
-      if (
-        parseFloat(token.cTokenSupplyBalanceUSD) > 0 &&
-        parseFloat(token.supplyApy) > 0 &&
-        setupData.totalSupplyBalance > 0
-      ) {
-        posApy +=
-          (parseFloat(token.cTokenSupplyBalanceUSD) *
-            parseFloat(token.supplyApy)) /
-          setupData.totalSupplyBalance;
-      }
-      if (
-        parseFloat(token.tokenBorrowBalanceUSD) > 0 &&
-        parseFloat(token.borrowApy) > 0 &&
-        setupData.totalBorrowBalance > 0
-      ) {
-        negApy +=
-          (parseFloat(token.tokenBorrowBalanceUSD) *
-            parseFloat(token.borrowApy)) /
-          setupData.totalBorrowBalance;
-      }
-    });
-
-    let obj = {
-      netApy: posApy - negApy,
-      posApy: posApy,
-      negApy: negApy,
-    };
-    setApyData(obj);
-  };
-
-  const calcTotalDeployedAmount = () => {
-    let myTotalCaseDeployed = 0;
-
-    tokenData.forEach((token: any) => {
-      if (parseFloat(token.totalErc20Supply) >= 0) {
-        myTotalCaseDeployed +=
-          parseFloat(token.totalErc20Supply) * parseFloat(token.priceUsd);
-      }
-    });
-
-    setTotalCashDeployed(myTotalCaseDeployed);
-  };
-
-  const updateBalanceEffect = () => {
-    const secondsInYear = 31622400;
-    const updateIntervalInSec = 7;
-    const myPolling = setInterval(() => {
-      let obj = { ...setupData };
-      if (
-        toDecimal(setupData.totalSupplyBalance, 7) > 0 &&
-        apyData.posApy > 0
-      ) {
-        const posApyPerSec = apyData.posApy / secondsInYear;
-        const posApyPerInterval = posApyPerSec * updateIntervalInSec;
-        obj.totalSupplyBalance =
-          obj.totalSupplyBalance +
-          (obj.totalSupplyBalance * posApyPerInterval) / 100;
-      }
-      if (
-        toDecimal(setupData.totalBorrowBalance, 7) > 0 &&
-        apyData.negApy > 0
-      ) {
-        const negApyPerSec = apyData.negApy / secondsInYear;
-        const negApyPerInterval = negApyPerSec * updateIntervalInSec;
-        obj.totalBorrowBalance =
-          obj.totalBorrowBalance +
-          (obj.totalBorrowBalance * negApyPerInterval) / 100;
-      }
-      setSetupData(obj);
-    }, updateIntervalInSec * 1000);
-    setPolling(myPolling);
-  };
-
-  const getVaultApys = async (vaultSymbol: any) => {
+  /**
+   * Supply
+   */
+  const handleSupply = async () => {
+    // setIsLoading(true);
     try {
-      const allApys = await getOmniSteaksApys();
-      let obj = { ...dataObj };
-      if (typeof allApys != "undefined") {
-        let apy = allApys[vaultSymbol]["totalApy"];
-        setVaultApy(apy);
-        obj.limeApy = allApys["omnifarm-USDO-LIME"]["totalApy"];
-        obj.popenApy = allApys["omnifarm-usdo-popen"]["totalApy"];
-        obj.landApy = allApys["omnifarm-USDO-LAND"]["totalApy"];
-        obj.rosnApy = allApys["omnifarm-USDO-ROSN"]["totalApy"];
-        obj.gfxApy = allApys["omnifarm-USDO-GFX"]["totalApy"];
-        obj.busdApy = allApys["omnifarm-usdo-busd-FET"]["totalApy"];
-        obj.anyMattApy = allApys["omnifarm-usdo-busd-anyMTLX"]["totalApy"];
-        obj.hyveApy = allApys["omnifarm-USDO-HYVE"]["totalApy"];
-      } else {
-        setVaultApy(0);
-        obj.limeApy = 0;
-        obj.popenApy = 0;
-        obj.landApy = 0;
-        obj.rosnApy = 0;
-        obj.gfxApy = 0;
-        obj.busdApy = 0;
-        obj.anyMattApy = 0;
-        obj.hyveApy = 0;
-      }
-      setDataObj(obj);
+      const overrides = {
+        gasPrice: ethers.utils.parseUnits(DEFAULT_GAS_PRICE.toString(), "gwei"),
+        gasLimit: 5000000,
+      };
+      await stakingCTokenContract.methods
+        .mint(
+          new BigNumber(stakingInput)
+            .times(new BigNumber(10).pow(stakingMarketData.underlyingDecimal))
+            .toString(10)
+        )
+        .send({ from: account?.address || undefined, ...overrides });
     } catch (error) {
-      console.error(error);
+      console.log("supply error :>> ", error);
+    }
+    setStakingInput("");
+
+  };
+
+  /**
+   * withdraw
+   */
+  const handleWithdraw = async () => {
+    // setIsLoading(true);
+    try {
+      // const vTokenBalance = await stakingCTokenContract.methods.balanceOf(account?.address).call();
+      // await stakingCTokenContract.methods.redeem(vTokenBalance).send({ from: account?.address });
+      await stakingCTokenContract.methods
+        .redeemUnderlying(
+          new BigNumber(withdrawStakingInput)
+            .times(new BigNumber(10).pow(stakingMarketData.underlyingDecimal))
+            .integerValue()
+            .toString(10)
+        )
+        .send({ from: account?.address || undefined, gas: 3000000 });
+      setWithdrawStakingInput("");
+      // onCancel();
+    } catch (error) {
+      console.log("supply error :>> ", error);
     }
   };
 
-  const setCompTokenApyData = () => {
-    let totalCompDistribution = toBN(compRate.multipliedBy(toBN(2)));
-    let tempTokenData = [...tokenData];
+  /**
+   * Borrow
+   */
+  const handleMint = async () => {
+    // setIsLoading(true);
+    try {
+      const overrides = {
+        gasPrice: ethers.utils.parseUnits(DEFAULT_GAS_PRICE.toString(), "gwei"),
+        gasLimit: 3000000,
+      };
 
-    tempTokenData.forEach((token: any) => {
-      if (parseFloat(token.totalErc20Borrows) > 0) {
-        token.borrowPercentage = toDecimal(
-          (token.totalErc20BorrowsUsd / totalCashLoans) * 100,
-          18
-        );
-        token.compRewardPerBlock = toBN(token.borrowPercentage)
-          .div(toBN(100))
-          .multipliedBy(totalCompDistribution);
-        token.compRewardPerDay = token.compRewardPerBlock.multipliedBy(
-          toBN(networkData.blocksPerYear).div(toBN(365.25))
-        );
-        token.compRewardPerBlockSuppliers = token.compRewardPerBlock.div(
-          toBN(2)
-        );
-        token.compRewardPerBlockBorrowers = token.compRewardPerBlock.div(
-          toBN(2)
-        );
-        token.compRewardPerDaySuppliers = token.compRewardPerDay.div(toBN(2));
-        token.compRewardPerDayBorrowers = token.compRewardPerDay.div(toBN(2));
-        token.compRewardPerBlockPerSupplyUsd =
-          token.compRewardPerBlockSuppliers.div(
-            toBN(token.totalErc20SupplyUsd)
-          );
-        token.compRewardPerBlockPerBorrowUsd =
-          token.compRewardPerBlockBorrowers.div(token.totalErc20BorrowsUsd);
-        token.compRewardReturnPerBlockPerSupplyUsd =
-          token.compRewardPerBlockPerSupplyUsd.multipliedBy(toBN(compPrice));
-        token.compRewardReturnPerBlockPerBorrowUsd =
-          token.compRewardPerBlockPerBorrowUsd.multipliedBy(toBN(compPrice));
-        token.compRewardReturnPerYearPerSupplyUsd =
-          token.compRewardReturnPerBlockPerSupplyUsd.multipliedBy(
-            toBN(networkData.blocksPerYear)
-          );
-        token.compRewardReturnPerYearPerBorrowUsd =
-          token.compRewardReturnPerBlockPerBorrowUsd.multipliedBy(
-            toBN(networkData.blocksPerYear)
-          );
-        token.supplyCompApy =
-          token.compRewardReturnPerYearPerSupplyUsd.multipliedBy(toBN(100));
-        token.borrowCompApy =
-          token.compRewardReturnPerYearPerBorrowUsd.multipliedBy(toBN(100));
-        token.totalSupplywithCompApy = toBN(token.supplyApy).plus(
-          toBN(token.supplyCompApy)
-        );
-        token.totalBorrowwithCompApy = toBN(token.borrowApy)
-          .negated()
-          .plus(toBN(token.borrowCompApy)); // Negated because borrow APY is always negative
+      await lendingCTokenContract.methods
+        .borrow(
+          new BigNumber(mintInput)
+            .times(new BigNumber(10).pow(lendingMarketData.underlyingDecimal))
+            .toString(10)
+        )
+        .send({ from: account?.address || undefined, ...overrides });
+      setMintInput("");
+      // onCancel();
+    } catch (error) {
+      console.log("supply error :>> ", error);
+    }
+  };
+
+  /**
+   * withdraw
+   */
+  const handleRepay = async () => {
+    // setIsLoading(true);
+    try {
+      await lendingCTokenContract.methods
+        .repayBorrow(
+          new BigNumber(repayInput)
+            .times(new BigNumber(10).pow(lendingMarketData.underlyingDecimal))
+            .toString(10)
+        )
+        .send({ from: account?.address || undefined });
+      setRepayInput("");
+      // onCancel();
+    } catch (error) {
+      console.log("supply error :>> ", error);
+    }
+  };
+
+  /**
+   * withdraw
+   */
+  const handleLend = async () => {
+    // setIsLoading(true);
+    try {
+      await lendingCTokenContract.methods
+        .mint(
+          new BigNumber(lendInput)
+            .times(new BigNumber(10).pow(lendingMarketData.underlyingDecimal))
+            .toString(10)
+        )
+        .send({ from: account?.address || undefined });
+      setLendInput("");
+      // onCancel();
+    } catch (error) {
+      console.log("supply error :>> ", error);
+    }
+  };
+
+  /**
+   * withdraw
+   */
+  const handleWithdrawLend = async () => {
+    // setIsLoading(true);
+    try {
+      await lendingCTokenContract.methods
+        .redeemUnderlying(
+          new BigNumber(withdrawLendingInput)
+            .times(new BigNumber(10).pow(lendingMarketData.underlyingDecimal))
+            .integerValue()
+            .toString(10)
+        )
+        .send({ from: account?.address || undefined, gas: 3000000 });
+      setWithdraLendingInput("");
+      // onCancel();
+    } catch (error) {
+      console.log("supply error :>> ", error);
+    }
+  };
+
+  const enterExitMarket = async (value: any) => {
+    try {
+      if (isEnableCollateral) {
+        await comptrollerContract.methods
+          .exitMarket(stakingUserMarketData.address)
+          .send({ from: account?.address || undefined });
+        setIsEnableCollateral(value);
       } else {
-        token.borrowPercentage = toBN(0);
-        token.compRewardPerBlock = toBN(0);
-        token.compRewardPerDay = toBN(0);
-        token.compRewardPerBlockSuppliers = toBN(0);
-        token.compRewardPerBlockBorrowers = toBN(0);
-        token.compRewardPerDaySuppliers = toBN(0);
-        token.compRewardPerDayBorrowers = toBN(0);
-        token.compRewardPerBlockPerSupplyUsd = toBN(0);
-        token.compRewardPerBlockPerBorrowUsd = toBN(0);
-        token.compRewardReturnPerBlockPerSupplyUsd = toBN(0);
-        token.compRewardReturnPerBlockPerBorrowUsd = toBN(0);
-        token.compRewardReturnPerYearPerSupplyUsd = toBN(0);
-        token.compRewardReturnPerYearPerBorrowUsd = toBN(0);
-        token.supplyCompApy = toBN(0);
-        token.borrowCompApy = toBN(0);
-        token.totalSupplywithCompApy = toBN(token.supplyApy);
-        token.totalBorrowwithCompApy = toBN(token.borrowApy).negated();
+        await comptrollerContract.methods
+          .enterMarkets([stakingUserMarketData.address])
+          .send({ from: account?.address || undefined });
+        setIsEnableCollateral(value);
       }
-    });
-
-    setTokenData(tempTokenData);
-  };
-
-  const getUsdoTokenDetails = () => {
-    if (tokenData.length === 0) {
-      return;
-    }
-    let result = tokenData.filter(
-      (token: any) =>
-        token.tokenAddress.toLowerCase() ===
-        blockchainConstants[networkData.name].usdoAddress.toLowerCase()
-    );
-    setUsdoTokenDetails(result[0]);
-  };
-
-  ////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////
-
-  const estimateGasPrice = async () => {
-    const obj: {
-      name: string;
-      defaultGasPrice: any;
-      blocksPerYear: number;
-    } = { ...networkData };
-    obj.defaultGasPrice = ethers.utils.parseUnits(
-      blockchainConstants[obj.name].DefaultGasPrice,
-      "gwei"
-    );
-    setNetworkData(obj);
-  };
-
-  const setNetworkVariables = async () => {
-    let obj = { ...networkData };
-    obj.name = "bsc";
-    if (blockchainConstants[obj.name]) {
-      obj.defaultGasPrice = ethers.utils.parseUnits(
-        blockchainConstants[obj.name].DefaultGasPrice,
-        "gwei"
-      );
-      obj.blocksPerYear = blockchainConstants[obj.name].BlocksPerYear;
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const enterExitMarket = async (token: any) => {
-    await estimateGasPrice();
-    const addressArray = [];
-    addressArray.push(token.cTokenAddress);
-    let tx;
-    const overrides = {
-      gasPrice: networkData.defaultGasPrice,
-      gasLimit: 300000,
-    };
-    if (token.enabled === true) {
-      tx = await comptrollerContract.methods
-        .exitMarket(token.cTokenAddress, overrides)
-        .send({ from: account });
-    } else {
-      tx = await comptrollerContract.methods
-        .enterMarkets(addressArray, overrides)
-        .send({ from: account });
-    }
-
-    await web3.waitForTransaction(tx.hash);
-    await setup();
-  };
-
-  const stake = async (i: any) => {
-    await estimateGasPrice();
-    setTokenAddress(tokenData[i].tokenAddress);
-    const decimals = await TokenContract.methods.decimals().call();
-    let amountInDec = tokenToDecimals(farmDataObj["stakeInputAmt"], decimals);
-
-    setCTokenAddress(tokenData[i].cTokenAddress);
-    const overrides = {
-      gasPrice: networkData.defaultGasPrice,
-      gasLimit: 1000000,
-    };
-    // const tx = await cTokenContract.methods
-    //   .mint(amountInDec, overrides)
-    //   .send({ from: account });
-    // await web3.waitForTransaction(tx.hash);
-
-    if (
-      tokenData[i].collateralFactor !== "0.00" &&
-      tokenData[i].enabled === false
-    ) {
-      await enterExitMarket(tokenData[i]);
-    }
-    setup();
-  };
-
-  const getContractAddresses = async () => {
-    let myContractAddresses: any = {};
-
-    myContractAddresses = blockchainConstants["bsc"];
-    myContractAddresses.Comptroller = selectedComp;
-    setContractAddresses(myContractAddresses);
-    return myContractAddresses;
-  };
-
-  const initAllContracts = async (contractAddresses: any) => {
-    // setContracts({})
-
-    // myContracts.Comptroller = initContract(
-    //   contractAddresses.Comptroller,
-    //   myComptroller.abi
-    // );
-
-    const compAddress = await comptrollerContract.methods
-      .getCompAddress()
-      .call();
-
-    setCompAddress(compAddress);
-    // myContracts.Comp = initContract(compAddress, Comp.abi);
-    // compContract = useCompContract(compAddress);
-
-    const myOracleAddress = await comptrollerContract.methods.oracle().call();
-
-    setOracleAddress(myOracleAddress);
-    // myContracts.PriceOracleProxy = initContract(
-    //   oracleAddress,
-    //   UniswapOracleTWAP.abi
-    // );
-
-    // priceOracleProxyContract = usePriceOracleProxyContract(oracleAddress);
-
-    // setContracts(myContracts);
-  };
-
-  const setup = async () => {
-    const resetState = {
-      totalValueLocked: 0,
-      availabletoBorrowUser: 0,
-      repayMaxAmount: false,
-      bonusApy: true,
-      selectedTokenIndex: 0,
-      totalSupplyBalance: 0,
-      totalBorrowBalance: 0,
-      accountLiquidity: 0,
-      sliderPercentage: 0,
-      roiFactor: 0,
-      compEarned: new BigNumber(0),
-      compBalance: 0,
-    };
-
-    setSetupData(resetState);
-
-    const myUserAddress = !!account && !!account.address ? account.address : "";
-
-    setCurrentAccount(myUserAddress);
-
-    await setNetworkVariables();
-
-    // BELOW IS ANGULAR CODE FOR SHOWING LOADER
-
-    // if (this.networkData.name == "polygon") {
-    //   cApp.blockPage({
-    //     overlayColor: "#000000",
-    //     state: "secondary",
-    //     message:
-    //       'Loading App...<br><br><div style="font-size: 0.8rem;">If it is taking too long to load, please try using different rpc urls: <br> <br> <strong>MATIC</strong> <br> 1. https://rpc-mainnet.matic.quiknode.pro <br>2. https://matic-mainnet.chainstacklabs.com</div><br>',
-    //   });
-    // } else {
-    //   cApp.blockPage({
-    //     overlayColor: "#000000",
-    //     state: "secondary",
-    //     message: "Loading App...",
-    //   });
-    // }
-
-    const myContractAddresses = await getContractAddresses();
-
-    if (typeof myContractAddresses === "undefined") {
-      return;
-    }
-
-    const allListedTokens = await fetchAllMarkets();
-    await initAllContracts(myContractAddresses);
-
-    const necessaryMarkets = allListedTokens;
-
-    await estimateGasPrice();
-
-    // In case there are no markets
-    // if (allListedTokens.length === 0) {
-    //   cApp.unblockPage();
-    //   return;
-    // }
-    fetchTokens(necessaryMarkets);
-  };
-
-  const getPrice = async (cTokenAddress: any) => {
-    let tokenPrice = await Contracts.PriceOracleProxy.getUnderlyingPrice(
-      cTokenAddress
-    );
-    const CTokenContractWithAbiCErc20Delegator =
-      useCTokenContractWithAbiCErc20Delegator(cTokenAddress);
-    const underlyingTokenAddress =
-      await CTokenContractWithAbiCErc20Delegator.methods.underlying().call();
-
-    const TokenContract = useTokenContractWithAbiIVTDemoABI(
-      underlyingTokenAddress
-    );
-    const tokenDecimals = await TokenContract.methods.decimals().call();
-    const decimalDiff = 36 - parseFloat(tokenDecimals);
-    const priceMantissa = toBN(tokenPrice).div(toBN(10).pow(decimalDiff));
-    return priceMantissa.toFixed();
-  };
-
-  const getUserSupplyBalance = async (cTokenContract: any, token: any) => {
-    let tokenBalance = await cTokenContract.methods
-      .balanceOf(currentAccount)
-      .call();
-    tokenBalance = getNumber(tokenBalance);
-
-    if (parseFloat(tokenBalance) > 0) {
-      const underlying = await cTokenContract.methods.underlying().call();
-      const tokenContract = useTokenContract(underlying);
-      const tokenDecimals = await tokenContract.methods.decimals().call();
-      const divBy = DECIMAL_18 * 10 ** parseFloat(tokenDecimals);
-
-      let exchangeRateStored = await cTokenContract.methods
-        .exchangeRateStored()
-        .call();
-      exchangeRateStored = getNumber(exchangeRateStored);
-      const bal =
-        (parseFloat(tokenBalance) * parseFloat(exchangeRateStored)) / divBy;
-      tokenBalance = bal;
-      const supplyBal = parseFloat(token.priceUsd) * parseFloat(tokenBalance);
-
-      let obj = { ...setupData };
-      obj.totalSupplyBalance = obj.totalSupplyBalance + supplyBal;
-      setSetupData(obj);
-    }
-    return tokenBalance;
-  };
-
-  const getUserBorrowBalance = async (cTokenContract: any, token: any) => {
-    let tokenBalance = await cTokenContract.methods
-      .borrowBalanceStored(currentAccount)
-      .call();
-    tokenBalance = getNumber(tokenBalance);
-    if (parseFloat(tokenBalance) > 0) {
-      const underlying = await cTokenContract.methods.underlying().call();
-      // const tokenContract = initContract(underlying, ERC20Detailed.abi);
-      const myTokenContract = useTokenContract(underlying);
-      const tokenDecimals = await myTokenContract.methods.decimals().call();
-
-      tokenBalance = parseFloat(tokenBalance) / 10 ** parseFloat(tokenDecimals);
-      const borrowBal = parseFloat(token.priceUsd) * parseFloat(tokenBalance);
-
-      let obj = { ...setupData };
-      obj.totalBorrowBalance = obj.totalBorrowBalance + borrowBal;
-      setSetupData(obj);
-    }
-    return tokenBalance;
-  };
-
-  const getUserTokenBalance = async (tokenContract: any) => {
-    let tokenBalance = await tokenContract.methods
-      .balanceOf(currentAccount)
-      .call();
-    tokenBalance = getNumber(tokenBalance);
-    return tokenBalance;
-  };
-
-  const getEnteredMarkets = async () => {
-    // const assetsInArray = await Contracts.Comptroller.getAssetsIn(
-    //   currentAccount
-    // );
-
-    const assetsInArray = await comptrollerContract.methods
-      .getAssetsIn(currentAccount)
-      .call();
-
-    if (assetsInArray.length === 0) {
-      return;
-    }
-
-    // tslint:disable-next-line: prefer-for-of
-    for (let i = 0; i < assetsInArray.length; i++) {
-      // tslint:disable-next-line: prefer-for-of
-      for (let j = 0; j < tokenData.length; j++) {
-        if (
-          assetsInArray[i].toLowerCase() ===
-          tokenData[j].cTokenAddress.toLowerCase()
-        ) {
-          tokenData[j].enabled = true;
+  /**
+   * Approve underlying token
+   */
+  const onApprove = useCallback(
+    async (type) => {
+      try {
+        if (type == "stake") {
+          await stakingTokenContract.methods
+            .approve(
+              stakingMarketData.address,
+              new BigNumber(2).pow(256).minus(1).toString(10)
+            )
+            .send({ from: account?.address || undefined });
+          setIsEnabledStake(true);
+        } else {
+          await lendingTokenContract.methods
+            .approve(
+              lendingMarketData.address,
+              new BigNumber(2).pow(256).minus(1).toString(10)
+            )
+            .send({ from: account?.address || undefined });
+          setIsEnabledLend(true);
         }
+      } catch (error) {
+        console.log("approve error :>> ", error);
       }
-    }
-  };
-
-  const checkBorrowPaused = async () => {
-    let myComptrollerV3: any = ComptrollerV3;
-
-    // const web3Contract = initContract(
-    //   contractAddresses.Comptroller,
-    //   myComptrollerV3["abi"]
-    // );
-
-    const myWeb3Contract = useWeb3Contract(selectedComp);
-
-    let borrPausedTokens = [];
-    let borrPausedTokensSymbols = [];
-
-    for (const token of tokenData) {
-      const isBorrowingPaused = await myWeb3Contract.methods
-        .borrowGuardianPaused(token.cTokenAddress)
-        .call();
-      if (isBorrowingPaused) {
-        borrPausedTokens.push(token);
-        borrPausedTokensSymbols.push(token.symbol);
-      }
-    }
-
-    setBorrowPausedTokens(borrPausedTokens);
-    setBorrowPausedTokensSymbols(borrPausedTokensSymbols);
-  };
-
-  const getAccountLiquidity = async (token: any, i: number) => {
-    let accountLiquidity = await comptrollerContract
-      .getAccountLiquidity(currentAccount)
-      .call();
-    accountLiquidity = new BigNumber(accountLiquidity[1].toString());
-
-    const myAvailabletoBorrowUser = accountLiquidity.div(10 ** 18).toFixed();
-    setAvailabletoBorrowUser(myAvailabletoBorrowUser);
-
-    if (
-      parseFloat(token.cTokenSupplyBalanceUSD) > 0 &&
-      token.enabled === true
-    ) {
-      const myAccountLiquidity =
-        accountLiquidity +
-        (parseFloat(token.collateralFactor) *
-          parseFloat(token.cTokenSupplyBalanceUSD)) /
-          100;
-      setAccountLiquidity(myAccountLiquidity);
-    }
-  };
-
-  const getCompRate = async () => {
-    let myCompRate = toBN(0);
-    setCompRate(myCompRate);
-    // const web3Contract = initContract(
-    //   contractAddresses.Comptroller,
-    //   myComptrollerV3["abi"]
-    // );
-    const myWeb3Contract = useWeb3Contract(selectedComp);
-    // let comprate = await web3Contract.compRate();
-    let comprate = await myWeb3Contract.methods.compRate().call();
-    comprate = parseFloat(comprate) / 10 ** 18; // 18 decimal reward Token
-    comprate = new BigNumber(comprate);
-    setCompRate(comprate);
-    return comprate;
-  };
-
-  const getCompAddress = async () => {
-    // const web3Contract = initContract(
-    //   contractAddresses.Comptroller,
-    //   myComptrollerV3["abi"]
-    // );
-    const myWeb3Contract = useWeb3Contract(selectedComp);
-
-    let compaddress = await myWeb3Contract.methods.getCompAddress().call();
-    setCompAddress(compaddress);
-    return compaddress;
-  };
-
-  const getCompPrice = () => {
-    if (tokenData.length === 0) {
-      return;
-    }
-    let result = tokenData.filter(
-      (token: any) =>
-        token.tokenAddress.toLowerCase() === compAddress.toLowerCase()
-    );
-    if (result.length) {
-      let myCompPrice = result[0].priceUsd;
-      setCompPrice(myCompPrice);
-    } else if (
-      compAddress.toLowerCase() ==
-      "0x3C70260eEe0a2bFc4b375feB810325801f289fBd".toLowerCase()
-    ) {
-      let compPrice1 = getPrice("0xfff0cC78a7E7CE5d6Ba60f23628fF9A63BEee87F");
-      setCompPrice(compPrice1);
-    }
-  };
-
-  const calcTotalLoanAmount = () => {
-    let myTotalCashLoans = 0;
-
-    tokenData.forEach((token: any) => {
-      if (parseFloat(token.totalErc20Borrows) >= 0) {
-        myTotalCashLoans +=
-          parseFloat(token.totalErc20Borrows) * parseFloat(token.priceUsd);
-      }
-    });
-
-    setTotalCashLoans(myTotalCashLoans);
-  };
-
-  const getCompEarned = async () => {
-    const DOUBLE = new BigNumber(1e36);
-    const EXP = new BigNumber(1e18);
-    let myCompEarned = new BigNumber(0);
-
-    let compTokenEarned = await comptrollerContract.methods
-      .compAccrued(currentAccount)
-      .call();
-    compTokenEarned = new BigNumber(compTokenEarned);
-    myCompEarned = myCompEarned.plus(compTokenEarned);
-
-    const allMarkets = await comptrollerContract.methods.getAllMarkets().call();
-
-    await allMarkets.forEach(async (cTokenAddr: any) => {
-      const markets = await Contracts.Comptroller.markets(cTokenAddr);
-
-      const compSupplyState = await comptrollerContract.methods
-        .compSupplyState(cTokenAddr)
-        .call();
-      const suppIndexCheck = new BigNumber(compSupplyState.index);
-      const compBorrowState = await comptrollerContract.methods
-        .compBorrowState(cTokenAddr)
-        .call();
-      const borrIndexCheck = new BigNumber(compBorrowState.index);
-      if (suppIndexCheck.isEqualTo(0) && borrIndexCheck.isEqualTo(0)) {
-        return;
-      }
-      let CTokenContract = useCTokenContract(cTokenAddr);
-
-      const supplyIndex = new BigNumber(compSupplyState.index);
-
-      let compSupplierIndex = await comptrollerContract.methods
-        .compSupplierIndex(cTokenAddr, currentAccount)
-        .call();
-      compSupplierIndex = new BigNumber(compSupplierIndex);
-      if (compSupplierIndex.isEqualTo(0) && supplyIndex.isGreaterThan(0)) {
-        compSupplierIndex = new BigNumber(1e36); // compInitialIndex
-      }
-
-      const deltaIndex = supplyIndex.minus(compSupplierIndex);
-
-      let supplierTokens = await CTokenContract.methods.balanceOf(
-        currentAccount
-      );
-      supplierTokens = new BigNumber(supplierTokens);
-      let supplierDelta = supplierTokens.times(deltaIndex);
-      supplierDelta = supplierDelta.div(DOUBLE);
-
-      myCompEarned = myCompEarned.plus(supplierDelta);
-
-      const borrowIndex = new BigNumber(compBorrowState.index);
-
-      let compBorrowerIndex = await comptrollerContract.methods
-        .compBorrowerIndex(cTokenAddr, currentAccount)
-        .call();
-      compBorrowerIndex = new BigNumber(compBorrowerIndex);
-
-      if (compBorrowerIndex.isGreaterThan(0)) {
-        const deltaIndexBorrow = borrowIndex.minus(compBorrowerIndex);
-
-        let borrowBalanceStored = await CTokenContract.methods
-          .borrowBalanceStored(currentAccount)
-          .call();
-        borrowBalanceStored = new BigNumber(borrowBalanceStored);
-        borrowBalanceStored = borrowBalanceStored.times(EXP);
-
-        let marketBorrowIndex = await CTokenContract.methods
-          .borrowIndex()
-          .call();
-        marketBorrowIndex = new BigNumber(marketBorrowIndex);
-        const borrowerAmount = borrowBalanceStored.div(marketBorrowIndex);
-
-        let borrowerDelta = borrowerAmount.times(deltaIndexBorrow);
-        borrowerDelta = borrowerDelta.div(DOUBLE);
-
-        myCompEarned = myCompEarned.plus(borrowerDelta);
-      }
-    });
-
-    let obj = { ...setupData };
-    obj.compEarned = myCompEarned;
-    setSetupData(obj);
-  };
-
-  const getCompBalance = async () => {
-    let compTokenBalance = await Contracts.Comp.balanceOf(currentAccount);
-    compTokenBalance = getNumber(compTokenBalance);
-    const tokenDecimals = await Contracts.Comp.decimals();
-    compTokenBalance =
-      parseFloat(compTokenBalance) / 10 ** parseFloat(tokenDecimals);
-    return compTokenBalance;
-  };
-
-  const afterInitToken = async (token: any, i: number) => {
-    setCallCount(callCount + 1);
-    if (callCount < numListedMarkets) {
-      return;
-    }
-    setTimeout(async () => {
-      await getEnteredMarkets();
-      await checkBorrowPaused();
-      await getAccountLiquidity(token, i);
-      await getCompRate();
-      await getCompAddress();
-      calcNetApy();
-      calcTotalDeployedAmount();
-      getCompPrice();
-      calcTotalLoanAmount();
-      setCompTokenApyData();
-      getUsdoTokenDetails();
-      if (accountLiquidity != 0 && i == 1) {
-        setupData.sliderPercentage =
-          (setupData.totalBorrowBalance / accountLiquidity) * 100;
-      }
-      if (i == 1) {
-        setupData.compBalance = await getCompBalance();
-        await getCompEarned();
-        if (compRate.isEqualTo(toBN(0)) || tokenData[1].symbol != "HOTCROSS") {
-          setBonusApy(false);
-        }
-      }
-      setLoadComplete(true);
-    }, 100);
-    // cApp.unblockPage();
-  };
-
-  const checkApproved = async (tokenContract: any, allowanceOf: any) => {
-    let approvedBal = await tokenContract.methods
-      .allowance(currentAccount, allowanceOf)
-      .call();
-    approvedBal = getNumber(approvedBal);
-    return approvedBal !== "0" ? true : false;
-  };
-
-  const getCtokenBorrows = async (cTokenContract: any, tokenContract: any) => {
-    const borrow = await cTokenContract.methods.totalBorrows().call();
-    const erc20Decimals = await tokenContract.methods.decimals().call();
-    const erc20Borrows = parseFloat(borrow) / 10 ** parseFloat(erc20Decimals);
-    return erc20Borrows;
-  };
-
-  const getCtokenSupply = async (cTokenContract: any, tokenContract: any) => {
-    const erc20Decimals = await tokenContract.methods.decimals().call();
-    const borrow = await cTokenContract.methods.totalBorrows().call();
-    const cash = await cTokenContract.getCash();
-    const reserves = await cTokenContract.methods.totalReserves().call();
-    const added = parseFloat(cash) + parseFloat(borrow) + parseFloat(reserves);
-    const divBy = 10 ** parseFloat(erc20Decimals);
-    const result = added / divBy;
-    return result;
-  };
-
-  const getCollateralFactor = async (cTokenAddress: any) => {
-    const markets = await comptrollerContract.methods
-      .markets(cTokenAddress)
-      .call();
-    const colFactorStrTemp = getNumber(markets.collateralFactorMantissa);
-    const divBy = 10 ** 16;
-    const colFactorStr = parseFloat(colFactorStrTemp) / divBy;
-    return colFactorStr.toFixed(2).toString();
-  };
-
-  const getAPY = async (cTokenContract: any) => {
-    let borrowRate = await cTokenContract.methods.borrowRatePerBlock().call();
-    borrowRate = getNumber(borrowRate);
-    let supplyRate = await cTokenContract.methods.supplyRatePerBlock().call();
-    supplyRate = getNumber(supplyRate);
-    const borrowApy = networkData.blocksPerYear * parseFloat(borrowRate);
-    const supplyApy = networkData.blocksPerYear * parseFloat(supplyRate);
-    const divBy = 10 ** 16;
-    const borrowApyPerc = borrowApy / divBy;
-    const supplyApyPerc = supplyApy / divBy;
-    return [borrowApyPerc.toFixed(3), supplyApyPerc.toFixed(3)];
-  };
-
-  const getUtilizationRate = async (cTokenContract: any) => {
-    const cash = await cTokenContract.methods.getCash().call();
-    const borrow = await cTokenContract.methods.totalBorrows().call();
-    const reserves = await cTokenContract.methods.totalReserves().call();
-    const divBy = parseFloat(cash) + parseFloat(borrow) - parseFloat(reserves);
-    if (divBy === 0) {
-      return "0";
-    }
-    const utilizationRate = (parseFloat(borrow) * 10 ** 18) / divBy;
-    return utilizationRate.toString();
-  };
-
-  const getAvailableBorrow = async (cTokenContract: any) => {
-    const underlying = await cTokenContract.methods.underlying().call();
-    // const tokenContract = initContract(underlying, ERC20Detailed.abi);
-    const tokenContract = useTokenContract(underlying);
-    const tokenDecimals = await tokenContract.methods.decimals().call();
-    let cash = await cTokenContract.methods.getCash().call();
-    cash = getNumber(cash);
-    const availableBorrow = parseFloat(cash) / 10 ** parseFloat(tokenDecimals);
-    return availableBorrow.toString();
-  };
-
-  // const initToken = async (token: any, i: number) => {
-  //   token.isListed = true;
-
-  //   const cTokenContract = useCTokenContractWithAbiCErc20Delegator(
-  //     token.cTokenAddress
-  //   );
-  //   let priceUsd = await getPrice(token.cTokenAddress);
-  //   token.priceUsd =
-  //     token.cTokenAddress == "0x606F53B25984D60559b21BEE6c51E2FE93137852"
-  //       ? parseFloat(priceUsd).toFixed(0)
-  //       : parseFloat(priceUsd).toFixed(18);
-  //   getUserSupplyBalance(cTokenContract, token).then(
-  //     (cTokenSupplyBalance: any) => {
-  //       token.cTokenSupplyBalance = parseFloat(cTokenSupplyBalance);
-  //       token.cTokenSupplyBalanceUSD = getUserSupplyBalanceUSD(token);
-  //     }
-  //   );
-  //   getUserBorrowBalance(cTokenContract, token).then(
-  //     (tokenBorrowBalance: any) => {
-  //       token.tokenBorrowBalance = parseFloat(tokenBorrowBalance);
-  //       token.tokenBorrowBalanceUSD = getUserBorrowBalanceUSD(token);
-  //     }
-  //   );
-  //   // });
-  //   cTokenContract.methods
-  //     .name()
-  //     .call()
-  //     .then((cTokenName: string) => {
-  //       token.cTokenName = cTokenName;
-  //     });
-  //   cTokenContract.methods
-  //     .underlying()
-  //     .call()
-  //     .then((underlyingTokenAddress: string) => {
-  //       token.tokenAddress = underlyingTokenAddress;
-  //       const tokenContract = useTokenContractWithAbiIVTDemoABI(
-  //         underlyingTokenAddress
-  //       );
-  //       tokenContract.methods
-  //         .decimals()
-  //         .call()
-  //         .then(async (decimals: any) => {
-  //           const divBy = 10 ** parseFloat(decimals);
-  //           token.erc20Decimals = decimals;
-  //           getUserTokenBalance(tokenContract).then((tokenBalance) => {
-  //             token.tokenBalance = parseFloat(tokenBalance) / divBy;
-  //             token.tokenBalanceBN = new BigNumber(tokenBalance.toString());
-  //             afterInitToken(token, i);
-  //           });
-  //           tokenContract.methods
-  //             .totalSupply()
-  //             .call()
-  //             .then((totalSupply: any) => {
-  //               totalSupply = getNumber(totalSupply);
-  //               token.erc20TotalSupply =
-  //                 parseFloat(totalSupply) /
-  //                 10 ** parseFloat(token.erc20Decimals);
-  //             });
-  //         });
-  //       tokenContract.methods
-  //         .symbol()
-  //         .call()
-  //         .then((symbol: any) => {
-  //           symbol = symbol;
-  //           token.symbol = cTokenAddressSymabolMapping[token.cTokenAddress]
-  //             ? cTokenAddressSymabolMapping[token.cTokenAddress]
-  //             : symbol;
-  //           token.text = cTokenAddressSymabolMapping[token.cTokenAddress]
-  //             ? cTokenAddressSymabolMapping[token.cTokenAddress]
-  //             : symbol;
-  //         });
-  //       tokenContract
-  //         .name()
-  //         .call()
-  //         .then(async (name: any) => {
-  //           token.name = name;
-  //         });
-  //       checkApproved(tokenContract, token.cTokenAddress).then((approved) => {
-  //         token.approved = approved;
-  //       });
-  //       getCtokenBorrows(cTokenContract, tokenContract).then(
-  //         (totalErc20Borrows: any) => {
-  //           token.totalErc20Borrows = totalErc20Borrows;
-  //           token.totalErc20BorrowsUsd =
-  //             totalErc20Borrows * parseFloat(token.priceUsd);
-  //         }
-  //       );
-  //       getCtokenSupply(cTokenContract, tokenContract).then(
-  //         (totalErc20Supply: any) => {
-  //           token.totalErc20Supply = totalErc20Supply;
-  //           token.totalErc20SupplyUsd =
-  //             totalErc20Supply * parseFloat(token.priceUsd);
-  //         }
-  //       );
-  //     });
-  //   getCollateralFactor(token.cTokenAddress).then((collateralFactor: any) => {
-  //     token.collateralFactor = collateralFactor;
-  //   });
-  //   getAPY(cTokenContract).then((apy: any) => {
-  //     token.borrowApy = apy[0];
-  //     token.supplyApy = apy[1];
-  //   });
-  //   getUtilizationRate(cTokenContract).then((utilizationRate: any) => {
-  //     token.utilizationRate = parseFloat(utilizationRate) / 10 ** 18;
-  //   });
-  //   getAvailableBorrow(cTokenContract).then((availableBorrow: any) => {
-  //     token.availableBorrow = availableBorrow;
-  //     token.availableBorrowUSD = getAvailableBorrowUSD(token);
-  //   });
-  // };
-
-  const fetchTokens = async (allListedTokens: any) => {
-    let mytokenData: any = [];
-    // for (const cTokenAddress of allListedTokens) {
-    for (let i = 0; i < allListedTokens.length; i++) {
-      const token = {} as any;
-      token.id = tokenData.length;
-      token.enabled = false;
-      token.approved = false;
-      token.cTokenAddress = allListedTokens[i];
-      // include await below maybe, thoguh not in angular code.
-      // initToken(token, i);
-      tokenData.push(token);
-    }
-    setTokenData(mytokenData);
-  };
-
-  const fetchAllMarkets = async () => {
-    let adminAddr = await web3Contract.methods.admin().call();
-    setAdminAddress(adminAddr);
-    const allMarkets = await web3Contract.methods.getAllMarkets().call();
-    return allMarkets;
-  };
-
-  const erc20Approve = async (i: number, from: any) => {
-    // this.spinner.show();
-    await estimateGasPrice();
-    const amountStr =
-      "115792089237316195423570985008687907853269984665640564039457584007913129639935";
-    const tokenAddress = tokenData[i].tokenAddress;
-    const tokenContractWithAbiIVTDemoABI =
-      useTokenContractWithAbiIVTDemoABI(tokenAddress);
-    const overrides = {
-      gasPrice: networkData.defaultGasPrice,
-      gasLimit: 200000,
-    };
-    const tx = await tokenContractWithAbiIVTDemoABI.methods
-      .approve(tokenData[i].cTokenAddress, amountStr, overrides)
-      .send({ from: account || undefined });
-
-    // const web3 = new ethers.providers.Web3Provider(window["ethereum"]);
-    await web3.waitForTransaction(tx.hash);
-
-    const tempTokenData = [...tokenData];
-    tempTokenData[i].approved = true;
-    setTokenData(tempTokenData);
-
-    // The code below exists in angular, double check.
-    // this.cdr.detectChanges();
-    // this.cdr.markForCheck();
-
-    // this.spinner.hide();
-    return true;
-  };
+    },
+    [account]
+  );
 
   const enableSupplyCollateral = () => {
-    setCollateralSupplyEnable(true);
-    erc20Approve(1, "stake");
+    onApprove("stake");
   };
 
   const enableBorrowCollateral = () => {
-    setCollateralBorrowEnable(true);
-    erc20Approve(0, "withdraw");
+    onApprove("lend");
   };
-
-  const initializeProvider = async () => {
-    try {
-      const network = await web3.getNetwork();
-      let tvl = await getTVL();
-
-      let obj: any = { ...dataObj };
-
-      obj["totalTvl"] = tvl["error"] == false ? tvl["data"]["totalTvl"] : 0;
-
-      let contractAddresses = blockchainConstants[network.name];
-      const currentComp = localStorage.getItem("currentComp");
-      if (currentComp) {
-        const parsedCurrentComp = JSON.parse(currentComp);
-        setSelectedComp(parsedCurrentComp);
-      }
-      let myVaultLists = [];
-      for (let i = 0; i < contractAddresses["mintingVaults"].length; i++) {
-        myVaultLists.push({
-          id: i,
-          name: contractAddresses["mintingVaults"][i]["stakeTokenSymbol"],
-          compAdd: contractAddresses["mintingVaults"][i]["comptroller"],
-        });
-      }
-      await setup();
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
-    getVaultApys("omnifarm-ocp-usdo");
-  }, []);
-
-  // useEffect(() => {
-  //   if (!!web3) setup();
-  // }, []);
-
-  // useEffect(() => {
-  //   return updateBalanceEffect();
-  // }, []);
-
-  // useEffect(() => {
-  //   setup();
-  // }, [selectedComp]);
-
   return (
     <>
       <div className="row mb40 mt50">
@@ -1324,6 +483,8 @@ export const TxnSection: React.FC<Props> = ({}) => {
               <div className="vault__head-label font-weight-bold">LEND APY</div>
             </div>
           </div>
+         {/* <PuffLoader color={'#BB76D8'} loading={true} cssOverride={override} size={150} /> */}
+
           <div
             className="row bg-white vault__subhead"
             data-toggle="collapse"
@@ -1333,118 +494,54 @@ export const TxnSection: React.FC<Props> = ({}) => {
             style={{ cursor: "pointer" }}
             aria-expanded="true"
           >
-            <div className="col-md-2 my-auto">
+            <div className="col-md-3 my-auto">
               <div className="vault__subhead-label">
-                {tokenData[1].symbol && (
+                {markets.length && (
                   <img
                     style={{
                       maxHeight: "25px",
                       marginTop: "-4.5px",
                     }}
-                    src={`/assets/img/${tokenData[1].symbol}_logo.png`}
-                    alt={`${tokenData[1].symbol} logo`}
+                    src={`/assets/img/${stakingMarketData.underlyingSymbol}_logo.png`}
+                    alt={`${stakingMarketData.underlyingSymbol} logo`}
                   />
-                )}
-                {tokenData[1].symbol}
+                )}  {stakingMarketData.underlyingSymbol}
               </div>
             </div>
-            <div className="col-md-2 my-auto">
+            <div className="col-md-3 my-auto">
               <div className="vault__subhead-label">
-                {localeString(toDecimal(tokenData[1].tokenBalance, 2), 2)}
-                {tokenData[1].symbol}
+                {localeString(
+                  toDecimal(stakingUserMarketData.walletBalanceUSD, 2),
+                  2
+                )}  {stakingMarketData.underlyingSymbol}
               </div>
               <div className="vault__subhead-text">Wallet</div>
               <div className="vault__subhead-label">
-                {localeString(
-                  toDecimal(tokenData[1].cTokenSupplyBalance, 2),
-                  2
-                )}
-                {tokenData[1].symbol}
+                {
+                  localeString(
+                    toDecimal(stakingUserMarketData.supplyBalanceUSD, 2),
+                    2
+                  ) //markets[1].cTokenSupplyBalance
+                }  {stakingMarketData.underlyingSymbol}
               </div>
               <div className="vault__subhead-text">Deposited</div>
             </div>
-            <div className="col-md-2 my-auto">
-              {bonusApy ? (
-                <div>
-                  {getAbsoluteValueWithDecimals(
-                    tokenData[0].totalBorrowwithCompApy,
-                    13
-                  ) > 0 ? (
-                    <div
-                      className="vault__subhead-label"
-                      style={{ color: "#BB76D8" }}
-                    >
-                      <i className="fa fa-plus"> </i>
-                      {getAbsoluteValueWithDecimals(
-                        tokenData[0].totalBorrowwithCompApy,
-                        2
-                      )}
-                      %
-                    </div>
-                  ) : (
-                    <div className="vault__subhead-label">
-                      <i className="fa fa-minus"></i>
-                      {getAbsoluteValueWithDecimals(
-                        tokenData[0].totalBorrowwithCompApy,
-                        2
-                      )}
-                      %
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className="vault__subhead-label"
-                  style={{ color: "black" }}
-                >
-                  <i className="fa fa-minus"></i>
-                  {getAbsoluteValueWithDecimals(tokenData[0].borrowApy, 2)}%
-                </div>
-              )}
+            <div className="col-md-3 my-auto">
+              <div className="vault__subhead-label" style={{ color: "black" }}>
+                <i className="fa fa-minus"></i>
+                {getAbsoluteValueWithDecimals(lendingMarketData.borrowApy, 2)}%
+              </div>
             </div>
-            <div className="col-md-2 my-auto">
-              {bonusApy ? (
-                <div>
-                  {getAbsoluteValueWithDecimals(
-                    tokenData[0].totalSupplywithCompApy,
-                    13
-                  ) > 0 ? (
-                    <div
-                      className="vault__subhead-label"
-                      style={{ color: "#BB76D8" }}
-                    >
-                      <i className="fa fa-plus"></i>
-                      {getAbsoluteValueWithDecimals(
-                        tokenData[0].totalSupplywithCompApy,
-                        2
-                      )}
-                      %
-                    </div>
-                  ) : (
-                    <div className="vault__subhead-label">
-                      {" "}
-                      <i className="fa fa-minus"></i>
-                      {getAbsoluteValueWithDecimals(
-                        tokenData[0].totalSupplywithCompApy,
-                        2
-                      )}
-                      %
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div
-                  className="vault__subhead-label"
-                  style={{ color: "#BB76D8" }}
-                >
-                  <i className="fa fa-plus"></i>
-                  {getAbsoluteValueWithDecimals(tokenData[0].supplyApy, 2)}%
-                </div>
-              )}
+            <div className="col-md-3 my-auto">
+              <div
+                className="vault__subhead-label"
+                style={{ color: "#BB76D8" }}
+              >
+                <i className="fa fa-plus"></i>
+                {getAbsoluteValueWithDecimals(lendingMarketData.supplyApy, 2)}%
+              </div>
             </div>
           </div>
-          {/*  */}
-          {/*  */}
           {showPuffCakeVaultContent && (
             <div className="row my0" style={{ height: "auto" }}>
               <div
@@ -1456,7 +553,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                 <div className="pb10 px10">
                   <div className="form">
                     <div className="mb10">
-                      {tokenData[1].symbol && (
+                      {stakingMarketData.underlyingSymbol && (
                         <div className="row">
                           <div className="col-4 p-0">
                             <div className="px-3 py-2">
@@ -1466,32 +563,32 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                 }`}
                                 onClick={() => viewStakeTab()}
                               >
-                                Stake {tokenData[1].symbol}
+                                Stake {stakingMarketData.underlyingSymbol}
                               </button>
                             </div>
                           </div>
                           <div className="col-4 p-0">
                             <div className="px-3 py-2">
-                              <button
+                              <Button
                                 className={`btn btn-lg btn-tab btn-dark-ctm btn-block ${
                                   dataObj.subtabType === "mint" ? "active" : ""
                                 }`}
                                 onClick={() => viewMintTab()}
                               >
-                                Mint {tokenData[0].symbol}
-                              </button>
+                                Mint {lendingMarketData.underlyingSymbol}
+                              </Button>
                             </div>
                           </div>
                           <div className="col-4 p-0">
                             <div className="px-3 py-2">
-                              <button
+                              <Button
                                 className={`btn btn-lg btn-tab btn-dark-ctm btn-block ${
                                   dataObj.subtabType === "lend" ? "active" : ""
                                 }`}
                                 onClick={() => viewLendTab()}
                               >
-                                Lend {tokenData[0].symbol}
-                              </button>
+                                Lend {lendingMarketData.underlyingSymbol}
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -1502,7 +599,11 @@ export const TxnSection: React.FC<Props> = ({}) => {
                             <div className="pl-3 pr-2">
                               <button
                                 className={`btn btn-lg btn-sub-tab btn-subtab-darker-ctm btn-block
-                    ${dataObj.viewFarmType == "stake" ? "active" : ""}`}
+                                ${
+                                  dataObj.viewFarmType == "stake"
+                                    ? "active"
+                                    : ""
+                                }`}
                                 onClick={() => viewFarmType("stake")}
                               >
                                 Stake
@@ -1563,7 +664,9 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                 className={`btn btn-lg btn-sub-tab btn-subtab-darker-ctm btn-block ${
                                   dataObj.viewFarmType == "lend" ? "active" : ""
                                 }`}
-                                disabled={tokenData[0].tokenBorrowBalance > 0}
+                                // disabled={
+                                //   true //markets[0].tokenBorrowBalance > 0
+                                // }
                                 onClick={() => viewFarmType("lend")}
                               >
                                 Lend
@@ -1588,218 +691,224 @@ export const TxnSection: React.FC<Props> = ({}) => {
                           <div className="col-12 px-3">
                             {dataObj.viewFarmType === "stake" && (
                               <div className="tab-spacer">
-                                <input
-                                  type="text"
+                                <Input
                                   className="form-control form-control-lg text-center"
                                   placeholder="0"
-                                  //   [(ngModel)]="farmDataObj.stakeInputAmt"
-                                  name="farmDataObj.stakeInputAmt"
-                                  id="supply_amount"
+                                  value={stakingInput}
+                                  onChange={(e) =>
+                                    setStakingInput(e.target.value)
+                                  }
                                 />
-                                <button
-                                  onClick={() => supplyMax(1, 1)}
+                                <Button
                                   className="max-btn"
+                                  isDisabled={false}
+                                  onClick={() => supplyMax(1, 1)}
                                 >
                                   MAX
-                                </button>
-                                <button
-                                  onClick={() => supplyMax(1, 0.75)}
+                                </Button>
+                                <Button
                                   className="max-btn"
+                                  isDisabled={false}
+                                  onClick={() => supplyMax(1, 0.75)}
                                 >
                                   75%
-                                </button>
-                                <button
-                                  onClick={() => supplyMax(1, 0.5)}
+                                </Button>
+                                <Button
                                   className="max-btn"
+                                  isDisabled={false}
+                                  onClick={() => supplyMax(1, 0.5)}
                                 >
                                   50%
-                                </button>
-                                <button
-                                  onClick={() => supplyMax(1, 0.25)}
+                                </Button>
+                                <Button
                                   className="max-btn"
+                                  isDisabled={false}
+                                  onClick={() => supplyMax(1, 0.25)}
                                 >
                                   25%
-                                </button>
+                                </Button>
                               </div>
                             )}
                             {dataObj.viewFarmType === "withdraw" && (
                               <div className="tab-spacer">
-                                <input
-                                  type="text"
+                                <Input
+                                  // type="text"
                                   className="form-control form-control-lg text-center"
-                                  placeholder="0"
-                                  //   [(ngModel)]="farmDataObj.withdrawInputAmt"
-                                  name="farmDataObj.withdrawInputAmt"
-                                  id="supply_amount"
-                                ></input>
-                                <button
+                                  // placeholder="0"
+                                  value={withdrawStakingInput}
+                                  onChange={(e) =>
+                                    setWithdrawStakingInput(e.target.value)
+                                  }
+                                ></Input>
+                                <Button
                                   onClick={() => withdrawMax(1, 1)}
                                   className="max-btn"
                                 >
                                   MAX
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => withdrawMax(1, 0.75)}
                                   className="max-btn"
                                 >
                                   75%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => withdrawMax(1, 0.5)}
                                   className="max-btn"
                                 >
                                   50%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => withdrawMax(1, 0.25)}
                                   className="max-btn"
                                 >
                                   25%
-                                </button>
+                                </Button>
                               </div>
                             )}
                             {dataObj.viewFarmType === "mint" && (
                               <div className="tab-spacer">
-                                <input
+                                <Input
                                   type="text"
                                   className="form-control form-control-lg text-center"
                                   placeholder="0"
-                                  // [(ngModel)]="farmDataObj.mintInputAmt"
-                                  name="farmDataObj.mintInputAmt"
-                                  id="supply_amount"
-                                ></input>
-                                <button
+                                  value={mintInput}
+                                  onChange={(e) => setMintInput(e.target.value)}
+                                ></Input>
+                                <Button
                                   onClick={() => borrowMax(0, 0.9)}
                                   className="max-btn"
                                 >
                                   MAX
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => borrowMax(0, 0.75)}
                                   className="max-btn"
                                 >
                                   75%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => borrowMax(0, 0.5)}
                                   className="max-btn"
                                 >
                                   50%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => borrowMax(0, 0.25)}
                                   className="max-btn"
                                 >
                                   25%
-                                </button>
+                                </Button>
                               </div>
                             )}
                             {dataObj.viewFarmType === "repay" && (
                               <div className="tab-spacer">
-                                <input
+                                <Input
                                   type="text"
                                   className="form-control form-control-lg text-center"
                                   placeholder="0"
-                                  //   [(ngModel)]="farmDataObj.repayInputAmt"
-                                  name="farmDataObj.repayInputAmt"
-                                  id="supply_amount"
-                                ></input>
-                                <button
+                                  value={repayInput}
+                                  onChange={(e) =>
+                                    setRepayInput(e.target.value)
+                                  }
+                                ></Input>
+                                <Button
                                   onClick={() => repayMax(0, 1)}
                                   className="max-btn"
                                 >
                                   MAX
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => repayMax(0, 0.75)}
                                   className="max-btn"
                                 >
                                   75%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => repayMax(0, 0.5)}
                                   className="max-btn"
                                 >
                                   50%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => repayMax(0, 0.25)}
                                   className="max-btn"
                                 >
                                   25%
-                                </button>
+                                </Button>
                               </div>
                             )}
                             {dataObj.viewFarmType === "lend" && (
                               <div className="tab-spacer">
-                                <input
+                                <Input
                                   type="text"
                                   className="form-control form-control-lg text-center"
                                   placeholder="0"
-                                  //   [(ngModel)]="farmDataObj.lendInputAmt"
-                                  name="farmDataObj.lendInputAmt"
-                                  id="supply_amount"
+                                  value={lendInput}
+                                  onChange={(e) => setLendInput(e.target.value)}
                                 />
-                                <button
+                                <Button
                                   onClick={() => lendMax(0, 1)}
                                   className="max-btn"
                                 >
                                   MAX
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => lendMax(0, 0.75)}
                                   className="max-btn"
                                 >
                                   75%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => lendMax(0, 0.5)}
                                   className="max-btn"
                                 >
                                   50%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => lendMax(0, 0.25)}
                                   className="max-btn"
                                 >
                                   25%
-                                </button>
+                                </Button>
                               </div>
                             )}
                             {dataObj.viewFarmType === "lendWithdraw" && (
                               <div className="tab-spacer">
-                                <input
+                                <Input
                                   type="text"
                                   className="form-control form-control-lg text-center"
                                   placeholder="0"
-                                  // [(ngModel)]="farmDataObj.lendWithdrawInputAmt"
-                                  name="farmDataObj.lendWithdrawInputAmt"
-                                  id="supply_amount"
+                                  value={withdrawLendingInput}
+                                  onChange={(e) =>
+                                    setWithdraLendingInput(e.target.value)
+                                  }
+                                  isRequired={true}
                                 />
-                                <button
+                                <Button
                                   onClick={() => lendWithdrawMax(0, 1)}
                                   className="max-btn"
                                 >
                                   MAX
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => lendWithdrawMax(0, 0.75)}
                                   className="max-btn"
                                 >
                                   75%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => lendWithdrawMax(0, 0.5)}
                                   className="max-btn"
                                 >
                                   50%
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   onClick={() => lendWithdrawMax(0, 0.25)}
                                   className="max-btn"
                                 >
                                   25%
-                                </button>
+                                </Button>
                               </div>
                             )}
                           </div>
@@ -1813,27 +922,16 @@ export const TxnSection: React.FC<Props> = ({}) => {
                           <span>Enable as collateral</span>
                         </div>
                         <div className="col-sm-2 col-2 text-right">
-                          {tokenData[1].collateralFactor !== "0.00" ? (
+                          {
                             <div>
-                              {/*
-                                <mat-slide-toggle
-                                [checked]="tokenData[1].enabled"
-                                [disabled]="false"
-                                (change)="enterExitMarket(tokenData[1])"
-                                >
-                                </mat-slide-toggle>
-                              */}
                               <Switch
-                                size="md"
-                                isChecked={tokenData[1].enabled}
-                                onChange={() => {
-                                  enterExitMarket(tokenData[1]);
-                                }}
+                                onChange={(e) => enterExitMarket(e)}
+                                height={22}
+                                width={45}
+                                checked={isEnableCollateral}
                               />
                             </div>
-                          ) : (
-                            <span>N.A.</span>
-                          )}
+                          }
                         </div>
                       </div>
                     )}
@@ -1844,8 +942,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                           <div className="calculation">
                             <div className="col-md-6">
                               <span className="description">
-                                {tokenData[0].symbol}
-                                BORROWED/MINTED + INTEREST ACCRUED
+                                {lendingMarketData.underlyingSymbol} BORROWED/MINTED + INTEREST ACCRUED
                               </span>
                             </div>
                             <div
@@ -1856,10 +953,9 @@ export const TxnSection: React.FC<Props> = ({}) => {
                             >
                               <span className="description">
                                 {toDecimal(
-                                  tokenData[0].tokenBorrowBalance,
-                                  tokenData[0].erc20Decimals
-                                )}
-                                {tokenData[0].symbol}
+                                  lendingUserMarketData.borrowBalanceUSD,
+                                  4 // markets[0].erc20Decimals
+                                )}  {lendingMarketData.underlyingSymbol}
                               </span>
                             </div>
                           </div>
@@ -1868,179 +964,160 @@ export const TxnSection: React.FC<Props> = ({}) => {
                     )}
 
                     <div className="px-1 mt-3">
-                      {dataObj.viewFarmType === "stake" &&
-                        tokenData[1].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              onClick={() => stake(1)}
-                              //   mat-raised-button
-                              //   matTooltip="Supply collateral"
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              SUBMIT
-                            </button>
-                          </div>
-                        )}
-                      {dataObj.viewFarmType === "stake" &&
-                        !tokenData[1].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              onClick={() => enableSupplyCollateral()}
-                              //   mat-raised-button
-                              //   matTooltip="Enable for Collateral Supply"
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              APPROVE
-                            </button>
-                          </div>
-                        )}
+                      {dataObj.viewFarmType === "stake" && isEnabledStake && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => handleSupply()}
+                            //   mat-raised-button
+                            //   matTooltip="Supply collateral"
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            SUBMIT
+                          </Button>
+                        </div>
+                      )}
+                      {dataObj.viewFarmType === "stake" && !isEnabledStake && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => enableSupplyCollateral()}
+                            //   mat-raised-button
+                            //   matTooltip="Enable for Collateral Supply"
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            APPROVE
+                          </Button>
+                        </div>
+                      )}
 
-                      {dataObj.viewFarmType === "withdraw" &&
-                        tokenData[1].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              //   onClick={() => withdraw(1)}
-                              //   mat-raised-button
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              SUBMIT
-                            </button>
-                          </div>
-                        )}
-                      {dataObj.viewFarmType === "withdraw" &&
-                        !tokenData[1].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              //   onClick={() => enableSupplyCollateral()}
-                              //   mat-raised-button
-                              //   matTooltip="Enable for Supply collateral"
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              APPROVE
-                            </button>
-                          </div>
-                        )}
+                      {dataObj.viewFarmType === "withdraw" && isEnabledStake && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => handleWithdraw()}
+                          >
+                            SUBMIT
+                          </Button>
+                        </div>
+                      )}
+                      {dataObj.viewFarmType === "withdraw" && !isEnabledStake && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => enableSupplyCollateral()}
+                            //   mat-raised-Button
+                            //   matTooltip="Enable for Supply collateral"
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            APPROVE
+                          </Button>
+                        </div>
+                      )}
 
-                      {dataObj.viewFarmType === "mint" &&
-                        tokenData[0].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block activebtn-brand"
-                              //    onClick={() => mint(0)}
-                              //   mat-raised-button
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              SUBMIT
-                            </button>
-                          </div>
-                        )}
+                      {dataObj.viewFarmType === "mint" && isEnabledLend && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block activebtn-brand"
+                            onClick={() => handleMint()}
+                          >
+                            SUBMIT
+                          </Button>
+                        </div>
+                      )}
 
-                      {dataObj.viewFarmType === "mint" &&
-                        !tokenData[0].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              //    onClick={() => enableBorrowCollateral()}
-                              //   mat-raised-button
-                              //   matTooltip="Enable"
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              APPROVE
-                            </button>
-                          </div>
-                        )}
-                      {dataObj.viewFarmType === "repay" &&
-                        tokenData[0].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              //    onClick={() => repay(0)}
-                              //   mat-raised-button
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              SUBMIT
-                            </button>
-                          </div>
-                        )}
+                      {dataObj.viewFarmType === "mint" && !isEnabledLend && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => enableBorrowCollateral()}
+                            //   mat-raised-Button
+                            //   matTooltip="Enable"
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            APPROVE
+                          </Button>
+                        </div>
+                      )}
+                      {dataObj.viewFarmType === "repay" && isEnabledLend && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => handleRepay()}
+                            //   mat-raised-Button
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            SUBMIT
+                          </Button>
+                        </div>
+                      )}
 
-                      {dataObj.viewFarmType === "repay" &&
-                        !tokenData[0].approved && (
-                          <div>
-                            <button
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              //    onClick={() => enableBorrowCollateral()}
-                              //   mat-raised-button
-                              //   matTooltip="Enable"
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              APPROVE
-                            </button>
-                          </div>
-                        )}
+                      {dataObj.viewFarmType === "repay" && !isEnabledLend && (
+                        <div>
+                          <Button
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => enableBorrowCollateral()}
+                            //   mat-raised-Button
+                            //   matTooltip="Enable"
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            APPROVE
+                          </Button>
+                        </div>
+                      )}
 
-                      {dataObj.viewFarmType === "lend" &&
-                        tokenData[0].approved && (
-                          <div>
-                            <button
-                              style={{ marginTop: "1rem" }}
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              disabled={tokenData[0].tokenBorrowBalance > 0}
-                              //    onClick={() => lend(0)}
-                              //   mat-raised-button
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              SUBMIT
-                            </button>
-                          </div>
-                        )}
+                      {dataObj.viewFarmType === "lend" && isEnabledLend && (
+                        <div>
+                          <Button
+                            style={{ marginTop: "1rem" }}
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            disabled={markets[0].tokenBorrowBalance > 0}
+                            onClick={() => handleLend()}
+                            //   mat-raised-Button
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            SUBMIT
+                          </Button>
+                        </div>
+                      )}
 
-                      {dataObj.viewFarmType === "lend" &&
-                        !tokenData[0].approved && (
-                          <div>
-                            <button
-                              style={{ marginTop: "1rem" }}
-                              className="btn btn-subtab-darker-ctm btn-block active"
-                              //   onClick={() => enableBorrowCollateral()}
-                              //   mat-raised-button
-                              //   matTooltip="Enable"
-                              //   matTooltipclassName="custom-tooltip"
-                            >
-                              APPROVE
-                            </button>
-                          </div>
-                        )}
+                      {dataObj.viewFarmType === "lend" && !isEnabledLend && (
+                        <div>
+                          <Button
+                            style={{ marginTop: "1rem" }}
+                            className="btn btn-subtab-darker-ctm btn-block active"
+                            onClick={() => enableBorrowCollateral()}
+                            //   mat-raised-Button
+                            //   matTooltip="Enable"
+                            //   matTooltipclassName="custom-tooltip"
+                          >
+                            APPROVE
+                          </Button>
+                        </div>
+                      )}
 
                       {dataObj.viewFarmType === "lendWithdraw" &&
-                        tokenData[0].approved && (
+                        isEnabledLend && (
                           <div>
-                            <button
+                            <Button
                               style={{ marginTop: "1rem" }}
                               className="btn btn-subtab-darker-ctm btn-block active"
-                              //    onClick={() => lendWithdraw(0)}
-                              //   mat-raised-button
-                              //   matTooltipclassName="custom-tooltip"
+                              onClick={() => handleWithdrawLend()}
                             >
                               SUBMIT
-                            </button>
+                            </Button>
                           </div>
                         )}
                       {dataObj.viewFarmType === "lendWithdraw" &&
-                        !tokenData[0].approved && (
+                        !isEnabledLend && (
                           <div>
-                            <button
+                            <Button
                               style={{ marginTop: "1rem" }}
                               className="btn btn-subtab-darker-ctm btn-block active"
                               onClick={() => enableBorrowCollateral()}
-                              //   mat-raised-button
-                              //   matTooltip="Enable"
-                              //   matTooltipclassName="custom-tooltip"
                             >
                               APPROVE
-                            </button>
+                            </Button>
                           </div>
                         )}
 
@@ -2052,9 +1129,6 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               <sup>
                                 <span
                                   className="step"
-                                  // mat-raised-button
-                                  // matTooltip="Supplied token can mint this percent of its value as USDO"
-                                  // matTooltipclassName="custom-tooltip"
                                   style={{
                                     paddingLeft: "0px",
                                   }}
@@ -2064,7 +1138,11 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               </sup>{" "}
                             </span>
                             <span className="font-weight-light">
-                              {toDecimal(tokenData[1].collateralFactor, 0)}%
+                              {toDecimal(
+                                new BigNumber(stakingUserMarketData.collateralFactor).times(100),
+                                0
+                              )}
+                              %
                             </span>
                           </div>
                           <div className="calculation py-1">
@@ -2073,9 +1151,6 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               <sup>
                                 <span
                                   className="step"
-                                  // mat-raised-button
-                                  // matTooltip="Collateral token price"
-                                  // matTooltipclassName="custom-tooltip"
                                   style={{
                                     paddingLeft: "0px",
                                   }}
@@ -2087,7 +1162,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                             <span className="font-weight-light">
                               $
                               {localeString(
-                                toDecimal(tokenData[1].priceUsd, 4),
+                                toDecimal(stakingMarketData.tokenPrice, 2),
                                 4
                               )}
                             </span>
@@ -2098,9 +1173,6 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               <sup>
                                 <span
                                   className="step"
-                                  // mat-raised-button
-                                  // matTooltip="Total value locked in this vault"
-                                  // matTooltipclassName="custom-tooltip"
                                   style={{
                                     paddingLeft: "0px",
                                   }}
@@ -2110,7 +1182,11 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               </sup>{" "}
                             </span>
                             <span className="font-weight-light">
-                              ${localeString(totalCashDeployed, 0)}
+                              $
+                              {localeString(
+                                toDecimal(stakingMarketData.liquidity, 2),
+                                4
+                              )}
                             </span>
                           </div>
                         </div>
@@ -2118,8 +1194,9 @@ export const TxnSection: React.FC<Props> = ({}) => {
 
                       {dataObj.subtabType === "mint" && (
                         <div className="mt20 font-weight-light">
-                          {tokenData[1].symbol !== "puffLINA" &&
-                            tokenData[1].symbol !== "puffCake" && (
+                          {/* {marketData.underlyingSymbol !== "puffLINA" &&
+                            marketData.underlyingSymbol !== "puffCake" && 
+                            (
                               <div className="calculation py-1">
                                 <span className="">
                                   Mint Fee{" "}
@@ -2137,22 +1214,22 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                     </span>
                                   </sup>{" "}
                                 </span>
-                                {tokenData[1].symbol !== "GFX" &&
-                                  tokenData[1].symbol !== "HOTCROSS" &&
-                                  tokenData[1].symbol !== "bwJUP" &&
-                                  tokenData[1].symbol !== "HYVE" && (
+                                {marketData.underlyingSymbol !== "GFX" &&
+                                  marketData.underlyingSymbol !== "HOTCROSS" &&
+                                  marketData.underlyingSymbol !== "bwJUP" &&
+                                  marketData.underlyingSymbol !== "HYVE" && (
                                     <span className="font-weight-light">
                                       0.5%
                                     </span>
                                   )}
-                                {tokenData[1].symbol === "GFX" ||
-                                  tokenData[1].symbol === "HOTCROSS" ||
-                                  tokenData[1].symbol === "bwJUP" ||
-                                  (tokenData[1].symbol === "HYVE" && (
+                                {marketData.underlyingSymbol === "GFX" ||
+                                  marketData.underlyingSymbol === "HOTCROSS" ||
+                                  marketData.underlyingSymbol === "bwJUP" ||
+                                  (marketData.underlyingSymbol === "HYVE" && (
                                     <span>1%</span>
                                   ))}
                               </div>
-                            )}
+                            )} */}
                           <div className="calculation py-1">
                             <span className="">
                               Vault Utilization{" "}
@@ -2171,7 +1248,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               </sup>{" "}
                             </span>
                             <span className="font-weight-light">
-                              {/* {{ toDecimal((tokenData[0].totalErc20Borrows) / (tokenData[0].totalErc20Supply) * 100, 2) }}% */}
+                              {toDecimal(((lendingUserMarketData.borrowBalance).div(lendingUserMarketData.supplyBalance).times(lendingUserMarketData.tokenPrice)).times(100), 2) }%
                             </span>
                           </div>
 
@@ -2193,27 +1270,30 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               </sup>{" "}
                             </span>
                             <span className="font-weight-light">
-                              {localeString(
-                                toDecimal(tokenData[0].availableBorrow, 2),
-                                2
-                              )}
-                              {tokenData[0].symbol}
+                              {
+                                toDecimal(
+                                  new BigNumber(lendingMarketData.availableLiquidity).div(new BigNumber(10).pow(lendingMarketData.underlyingDecimal)), //markets[0].availableBorrow,
+                                  2
+                                )}  {lendingMarketData.underlyingSymbol}
                             </span>
                           </div>
-                          <div className="calculation py-1">
-                            <span className="">USDO borrowed by all users</span>
+                          {/* <div className="calculation py-1">
+                            <span className="">{lendingMarketData.underlyingSymbol} borrowed by all users</span>
                             <span className="font-weight-light">
                               {localeString(
-                                toDecimal(tokenData[0].totalErc20Borrows, 2),
+                                toDecimal(
+                                  lendingUserMarketData.borrowBalanceUSD, //markets[0].totalErc20Borrows,
+                                  2
+                                ),
                                 2
                               )}{" "}
-                              {tokenData[0].symbol}
+                              {marketData.underlyingSymbol}
                             </span>
-                          </div>
+                          </div> */}
 
                           <div className="calculation">
                             <div>
-                              {tokenData[1].symbol === "LIME" && (
+                              {marketData.underlyingSymbol === "LIME" && (
                                 <a
                                   className="description asset"
                                   href="https://limerekt.opendao.io/"
@@ -2222,7 +1302,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "OCP" && (
+                              {marketData.underlyingSymbol === "OCP" && (
                                 <a
                                   className="description asset"
                                   href="https://ocprekt.opendao.io/"
@@ -2231,7 +1311,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "pOPEN" && (
+                              {marketData.underlyingSymbol === "pOPEN" && (
                                 <a
                                   className="description asset"
                                   href="https://popenrekt.opendao.io/"
@@ -2240,7 +1320,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "LAND" && (
+                              {marketData.underlyingSymbol === "LAND" && (
                                 <a
                                   className="description asset"
                                   href="https://landrekt.opendao.io/"
@@ -2249,7 +1329,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "ROSN" && (
+                              {marketData.underlyingSymbol === "ROSN" && (
                                 <a
                                   className="description asset"
                                   href="https://rosnrekt.opendao.io/"
@@ -2258,7 +1338,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "GFX" && (
+                              {marketData.underlyingSymbol === "GFX" && (
                                 <a
                                   className="description asset"
                                   href="https://gfxrekt.opendao.io/"
@@ -2267,7 +1347,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "HOTCROSS" && (
+                              {marketData.underlyingSymbol === "HOTCROSS" && (
                                 <a
                                   className="description asset"
                                   href="https://hotcrossrekt.opendao.io/"
@@ -2276,7 +1356,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "puffCake" && (
+                              {marketData.underlyingSymbol === "puffCake" && (
                                 <a
                                   className="description asset"
                                   href="https://cakerekt.ocp.finance/"
@@ -2285,7 +1365,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "puffLINA" && (
+                              {marketData.underlyingSymbol === "puffLINA" && (
                                 <a
                                   className="description asset"
                                   href="https://linarekt.ocp.finance/"
@@ -2294,7 +1374,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "bwJUP" && (
+                              {marketData.underlyingSymbol === "bwJUP" && (
                                 <a
                                   className="description asset"
                                   href="https://juprekt.opendao.io/"
@@ -2303,7 +1383,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   All Positions
                                 </a>
                               )}
-                              {tokenData[1].symbol === "HYVE" && (
+                              {marketData.underlyingSymbol === "HYVE" && (
                                 <a
                                   className="description asset"
                                   href="https://hyverekt.opendao.io/"
@@ -2316,7 +1396,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                           </div>
                           <div className="calculation">
                             <div>
-                              {tokenData[1].symbol === "LIME" && (
+                              {marketData.underlyingSymbol === "LIME" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x2240e2A6805b31Bd1BC03bd5190f644334F53b9A"
@@ -2325,7 +1405,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "OCP" && (
+                              {marketData.underlyingSymbol === "OCP" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0xA21d5c762E13FcfC8541558dAce9BA54f1F6176F"
@@ -2334,7 +1414,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "pOPEN" && (
+                              {marketData.underlyingSymbol === "pOPEN" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x5AcEc8328f41145562548Dd335556c12559f2913"
@@ -2343,7 +1423,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "LAND" && (
+                              {marketData.underlyingSymbol === "LAND" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0xdaD9b52fE5ffd4331aaA02321f1ffa400C827EC8"
@@ -2352,7 +1432,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "ROSN" && (
+                              {marketData.underlyingSymbol === "ROSN" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x52CA265749527d86C4666788116b0CDF6012bD5F"
@@ -2361,7 +1441,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "GFX" && (
+                              {marketData.underlyingSymbol === "GFX" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x2388E81Ba9f4360e359D88A4513055c5D12a96bA"
@@ -2370,7 +1450,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "HOTCROSS" && (
+                              {marketData.underlyingSymbol === "HOTCROSS" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x8ee2C57434cECfE9501efdB112CfE73adb3c6E68"
@@ -2379,7 +1459,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "puffCake" && (
+                              {marketData.underlyingSymbol === "puffCake" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x35912c80AfeD3BC925bdA3B4Ee5B0085FB36891e"
@@ -2389,7 +1469,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                 </a>
                               )}
 
-                              {tokenData[1].symbol === "puffLINA" && (
+                              {marketData.underlyingSymbol === "puffLINA" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x118122C7de0Fa0DE3e4017fD9eA6C422438A46C6"
@@ -2398,7 +1478,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "bwJUP" && (
+                              {marketData.underlyingSymbol === "bwJUP" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x88826F399CB7a843fF84f24c0b7662cfF17F45C0"
@@ -2407,7 +1487,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                   Unitroller
                                 </a>
                               )}
-                              {tokenData[1].symbol === "HYVE" && (
+                              {marketData.underlyingSymbol === "HYVE" && (
                                 <a
                                   className="description asset"
                                   href="https://mint.opendao.io/#/admin/0x8C3f575F0E4E6baB86741866910851E18ead4aDB"
@@ -2441,8 +1521,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               </sup>{" "}
                             </span>
                             <span className="font-weight-light">
-                              {toDecimal(tokenData[0].utilizationRate * 100, 2)}
-                              %
+                              {toDecimal(new BigNumber(lendingMarketData.utilizationRatio).times(100), 2)}%
                             </span>
                           </div>
                           <div className="calculation py-1">
@@ -2463,11 +1542,10 @@ export const TxnSection: React.FC<Props> = ({}) => {
                               </sup>{" "}
                             </span>
                             <span className="font-weight-light">
-                              {localeString(
-                                toDecimal(tokenData[0].availableBorrow, 2),
-                                2
-                              )}
-                              {tokenData[0].symbol}
+                              {
+                                toDecimal((new BigNumber(lendingMarketData.availableLiquidity).div(new BigNumber(10).pow(lendingMarketData.underlyingDecimal))),
+                                2)
+                              }  {lendingMarketData.underlyingSymbol}
                             </span>
                           </div>
                         </div>
@@ -2495,18 +1573,12 @@ export const TxnSection: React.FC<Props> = ({}) => {
                         <label className="mr-1" style={{ fontWeight: 400 }}>
                           Mint&nbsp;Limit&nbsp;
                         </label>
-                        <div className="progress progress-sm">
-                          <div
-                            className="progress-bar progress-success"
-                            role="progressbar"
-                          ></div>
-                          <label
-                            className="progress-percent ml-1"
-                            style={{ fontWeight: 400 }}
-                          >
-                            {toDecimal(setupData.sliderPercentage, 2)}%
-                          </label>
-                        </div>
+                        
+                        <Progress percent={lendingUserMarketData.percentOfLimit} status="success" />
+                        {
+                         new BigNumber(lendingUserMarketData.percentOfLimit).dp(2,1).toString(10) //  setupData.sliderPercentage
+                        }
+                         %
                       </div>
                     </div>
                   </div>
@@ -2532,10 +1604,12 @@ export const TxnSection: React.FC<Props> = ({}) => {
                       </span>
                       <span className="text-right font-weight-light">
                         {localeString(
-                          toDecimal(tokenData[1].cTokenSupplyBalance, 2),
+                          toDecimal(
+                            lendingUserMarketData.supplyBalanceUSD, //markets[1].cTokenSupplyBalance,
+                            2
+                          ),
                           2
-                        )}
-                        {tokenData[1].symbol}
+                        )}  {marketData.underlyingSymbol}
                       </span>
                     </div>
                     <div className="calculation py-1">
@@ -2556,12 +1630,15 @@ export const TxnSection: React.FC<Props> = ({}) => {
                       <span className="font-weight-light">
                         $
                         {localeString(
-                          toDecimal(tokenData[1].cTokenSupplyBalanceUSD, 2),
+                          toDecimal(
+                            (new BigNumber(lendingUserMarketData.supplyBalanceUSD).times(lendingMarketData.tokenPrice)),
+                            2
+                          ),
                           2
                         )}
                       </span>
                     </div>
-                    <div className="calculation mt-3 py-1">
+                    {/* <div className="calculation mt-3 py-1">
                       <span className="">
                         USDO Supplied{" "}
                         <sup>
@@ -2579,14 +1656,17 @@ export const TxnSection: React.FC<Props> = ({}) => {
                       <span className="font-weight-light">
                         $
                         {localeString(
-                          toDecimal(tokenData[0].cTokenSupplyBalanceUSD, 2),
+                          toDecimal(
+                            0, //markets[0].cTokenSupplyBalanceUSD,
+                            2
+                          ),
                           2
                         )}
                       </span>
-                    </div>
+                    </div> */}
                     <div className="calculation py-1">
                       <span className="">
-                        USDO Minted{" "}
+                        {lendingMarketData.underlyingSymbol} Minted{" "}
                         <sup>
                           <span
                             className="step"
@@ -2602,7 +1682,10 @@ export const TxnSection: React.FC<Props> = ({}) => {
                       <span className="font-weight-light">
                         $
                         {localeString(
-                          toDecimal(tokenData[0].tokenBorrowBalance, 2),
+                          toDecimal(
+                            new BigNumber(lendingUserMarketData.borrowBalanceUSD).times(lendingUserMarketData.tokenPrice), //markets[0].tokenBorrowBalance,
+                            2
+                          ),
                           2
                         )}
                       </span>
@@ -2624,17 +1707,10 @@ export const TxnSection: React.FC<Props> = ({}) => {
                       </span>
                       <span className="font-weight-light">
                         $
-                        {localeString(
-                          toDecimal(
-                            setupData.availabletoBorrowUser /
-                              tokenData[0].priceUsd,
-                            2
-                          ),
-                          2
-                        )}
+                        {/* {(new BigNumber(userTotalBorrowLimit).div(1e18)).minus(userTotalBorrowBalance)} */}
                       </span>
                     </div>
-                    {tokenData[1].symbol === "HOTCROSS" && (
+                    {marketData.underlyingSymbol === "HOTCROSS" && (
                       <div className="calculation py-1">
                         <span className="">
                           Claim Rewards{" "}
@@ -2668,7 +1744,7 @@ export const TxnSection: React.FC<Props> = ({}) => {
                       </div>
                     )}
 
-                    {tokenData[1].symbol && (
+                    {lendingMarketData.underlyingSymbol && (
                       <div className="row py5 px15 text-left font-weight-light">
                         <div className="col-md-12">
                           <div className="text-secondary-ctm font-weight-bold text-left my-3">
@@ -2687,15 +1763,18 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                       style={{
                                         maxHeight: "28px",
                                       }}
-                                      src={`/assets/img/${tokenData[1].symbol}_logo.png`}
+                                      src={`/assets/img/${lendingMarketData.underlyingSymbol}_logo.png`}
                                       // onError="this.onerror=null;this.src='assets/img/binance-coin-logo.png';"
                                       alt="BUSD logo"
                                     />
-                                    {/* {{tokenData[1].symbol}} */}
+                                    {lendingMarketData.underlyingSymbol}
                                   </div>
                                   <div className="col-md-6 text-right">
                                     {localeString(
-                                      toDecimal(tokenData[1].tokenBalance, 2),
+                                      toDecimal(
+                                        lendingUserMarketData.walletBalanceUSD, //markets[1].tokenBalance,
+                                        2
+                                      ),
                                       2
                                     )}
                                   </div>
@@ -2717,15 +1796,18 @@ export const TxnSection: React.FC<Props> = ({}) => {
                                       style={{
                                         maxHeight: "28px",
                                       }}
-                                      src={`/assets/img/${tokenData[0].symbol}_logo.png`}
+                                      src={`/assets/img/${stakingMarketData.underlyingSymbol}_logo.png`}
                                       // onError="this.onerror=null;this.src='assets/img/binance-coin-logo.png';"
-                                      alt={`${tokenData[0].symbol} logo`}
+                                      alt={`${stakingMarketData.underlyingSymbol} logo`}
                                     />
-                                    {tokenData[0].symbol}
+                                    {stakingMarketData.underlyingSymbol}
                                   </div>
                                   <div className="col-md-6 text-right">
                                     {localeString(
-                                      toDecimal(tokenData[0].tokenBalance, 2),
+                                      toDecimal(
+                                        stakingUserMarketData.walletBalanceUSD,
+                                        2
+                                      ),
                                       2
                                     )}
                                   </div>

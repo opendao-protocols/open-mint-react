@@ -1882,7 +1882,7 @@ $(document).ready(function () {
               });
           },
           gotoMorePage: function (e) {
-            e.preventDefault();
+            // e.preventDefault();
             // $(this) is a link of .c-datatable__pager-link
 
             if ($(this).attr('disabled') === 'disabled') return false;
@@ -1898,7 +1898,7 @@ $(document).ready(function () {
             return false;
           },
           gotoPage: function (e) {
-            e.preventDefault();
+            // e.preventDefault();
             // prevent from click same page number
             if ($(this).hasClass('c-datatable__pager-link--active')) return;
 
@@ -1915,7 +1915,7 @@ $(document).ready(function () {
             $(pg.pager).trigger('c-datatable--on-goto-page', pg.meta);
           },
           updatePerpage: function (e) {
-            e.preventDefault();
+            // e.preventDefault();
             if (API.getOption('layout.height') === null) {
               // fix white space, when perpage is set from many records to less records
               $('html, body').animate({ scrollTop: $(datatable).position().top });
@@ -2214,7 +2214,7 @@ $(document).ready(function () {
 
           // toggle on open sub table
           var toggleSubTable = function (e) {
-            e.preventDefault();
+            // e.preventDefault();
             // get parent row of this detail table
             var parentRow = $(this).closest('.c-datatable__row');
             // get detail row for sub table

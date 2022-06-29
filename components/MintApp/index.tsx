@@ -33,11 +33,11 @@ export const MintApp: React.FC<Props> = ({}) => {
   //   );
   // }
 
-  if (!!currentAccount && networkString !== "BSC") {
+  if (!!currentAccount && networkString !== "POLYGON") {
     return (
       <>
         <Header />
-        <SelectNetworkModal isOpen={networkString !== "BSC"} />
+        <SelectNetworkModal isOpen={networkString !== "POLYGON"} />
       </>
     );
   }
@@ -49,7 +49,7 @@ export const MintApp: React.FC<Props> = ({}) => {
         <>
           <InfoAndTvl />
           <MinterPartners />
-          <TxnSection />
+          {/* <TxnSection /> */}
           <Footer />
         </>
       )}

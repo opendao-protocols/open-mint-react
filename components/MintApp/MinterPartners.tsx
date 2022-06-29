@@ -1,28 +1,24 @@
 import React, { useContext, useEffect, useState } from "react";
 import { blockchainConstants } from "../../lib/constants/blockchain-constants";
-import AppContext from "../utils/AppContext";
+import { TxnSection } from "./TxnSection";
 
 interface Props {}
 
 export const MinterPartners: React.FC<Props> = ({}) => {
-  const {
-    currentAccount,
-    setCurrentAccount,
-    networkString,
-    setNetworkString,
-    setContractAddresses,
-    contractAddresses,
-    selectedComp,
-    setSelectedComp,
-  } = useContext(AppContext);
 
   const [vaultLists, setVaultLists] = useState<any[]>([]);
+  const [showComp, setShowComp] = useState(false);
+  const [compAdd, setCompAdd] = useState('');
+  const [selectedComp, setSelectedComp] = useState('');
+
 
   const minterPartnerChange = (id: string) => {
     if (id) {
       try {
         setSelectedComp(id);
+        setShowComp(true);
         localStorage.setItem("currentComp", JSON.stringify(id));
+        setCompAdd(id);
       } catch (err) {
         console.log(err);
       }
@@ -31,9 +27,21 @@ export const MinterPartners: React.FC<Props> = ({}) => {
 
   useEffect(
     () => {
-      // if (networkString === "BSC") {
-      setContractAddresses(blockchainConstants["bsc"]);
       try {
+        const currentComp = localStorage.getItem("currentComp");
+        if (currentComp) {
+          const compAdd = JSON.parse(currentComp);
+          setSelectedComp(compAdd)
+          setShowComp(true);
+          setCompAdd(compAdd);
+        }
+        else{
+          setSelectedComp("0x61aAeaBdc65e4A95CcaA1a9573906604121ff87a");
+          setShowComp(true);
+          localStorage.setItem("currentComp", JSON.stringify("0x61aAeaBdc65e4A95CcaA1a9573906604121ff87a"));
+          setCompAdd("0x61aAeaBdc65e4A95CcaA1a9573906604121ff87a");
+        }
+
         const tempVaultLists: {
           id: number;
           name: any;
@@ -41,16 +49,16 @@ export const MinterPartners: React.FC<Props> = ({}) => {
         }[] = [];
         for (
           let i = 0;
-          i < blockchainConstants["bsc"]["mintingVaults"].length;
+          i < blockchainConstants["polygon"]["mintingVaults"].length;
           i++
         ) {
           tempVaultLists.push({
             id: i,
-            name: blockchainConstants["bsc"]["mintingVaults"][i][
+            name: blockchainConstants["polygon"]["mintingVaults"][i][
               "stakeTokenSymbol"
             ],
             compAdd:
-              blockchainConstants["bsc"]["mintingVaults"][i]["comptroller"],
+              blockchainConstants["polygon"]["mintingVaults"][i]["comptroller"],
           });
         }
         setVaultLists(tempVaultLists);
@@ -58,12 +66,8 @@ export const MinterPartners: React.FC<Props> = ({}) => {
         console.log("MinterPartners UseEffect error:", error);
       }
       // }
-    },
-    [
-      // networkString, contractAddresses
-    ]
+    },[]
   );
-
   return (
     <>
       <div className="mb40">
@@ -95,6 +99,8 @@ export const MinterPartners: React.FC<Props> = ({}) => {
           </div>
         </div>
       </div>
+      {showComp ? 
+      <TxnSection data = {compAdd} /> : null}
     </>
   );
 };

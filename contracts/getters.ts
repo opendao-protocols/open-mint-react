@@ -25,7 +25,7 @@ import CErc20Delegator from "./../public/assets/contracts/CErc20Delegator.json";
 // import xvsVaultStoreAbi from "constants/contracts/abis/xvsVaultStore.json";
 // import xvsVaultAbi from "constants/contracts/abis/xvsVault.json";
 // import vBep20Abi from "constants/contracts/abis/vBep20.json";
-// import venusLensAbi from "constants/contracts/abis/venusLens.json";
+import compLensAbi from "./../public/assets/contracts/compLens.json";
 // import governorBravoDelegateAbi from "constants/contracts/abis/governorBravoDelegate.json";
 // import xvsVestingAbi from "constants/contracts/abis/xvsVesting.json";
 // import vrtConverterAbi from "constants/contracts/abis/vrtConverter.json";
@@ -121,9 +121,9 @@ import CErc20Delegator from "./../public/assets/contracts/CErc20Delegator.json";
 //   return new web3.eth.Contract(abi, address) as unknown as T;
 // };
 
-// export const getMyContract = (address: string, abi: any, web3: Web3) => {
-//   getContract(abi as AbiItem[], address, web3);
-// };
+export const getMyContract = (address: string, abi: any, web3: Web3) => {
+  getContract(abi as AbiItem[], address, web3);
+};
 
 const getContract = <T>(
   abi: AbiItem | AbiItem[],
@@ -235,6 +235,17 @@ export const getCompContract = (web3: Web3, address: string) => {
 export const useCompContract = (address: string) => {
   const web3 = useWeb3();
   return useMemo(() => getCompContract(web3, address), [web3, address]);
+};
+
+
+export const getVenusLensContract = (web3: Web3, address: string) => {
+  let compLens: any = compLensAbi;
+  return getContract(compLens as AbiItem[], address, web3) as unknown as any;
+};
+
+export const useVenusLensContract = (address: string) => {
+  const web3 = useWeb3();
+  return useMemo(() => getVenusLensContract(web3, address), [web3, address]);
 };
 
 export const getCTokenContractWithAbiCErc20Delegator = (

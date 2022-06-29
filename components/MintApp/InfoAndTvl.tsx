@@ -30,7 +30,7 @@ export const InfoAndTvl: React.FC<Props> = ({}) => {
     if (!!tvl) {
       const ob = {
         ...dataObj,
-        totalTvl: tvl["error"] == false ? tvl["data"]["totalTvl"] : 0,
+        totalTvl: tvl["error"] == false ? tvl["data"] : 0,
       };
       setDataObj(ob);
       const currentComp = localStorage.getItem("currentComp");

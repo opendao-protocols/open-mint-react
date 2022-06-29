@@ -32,7 +32,7 @@ export const AccountDetails: React.FC<IAccountDetailsProps> = ({
 
   // Grab the wallet info. Note that we default to the first wallet in the list
   // if no match is found, but in reality that case should never happen
-  const { Logo: WalletLogo, name: walletName } =
+  const { name: walletName } =
     WALLETS.find((wallet) => wallet.connector === account.connector) ||
     WALLETS[0];
 
