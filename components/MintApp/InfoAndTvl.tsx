@@ -50,7 +50,7 @@ export const InfoAndTvl: React.FC<Props> = ({}) => {
       <div>
         <div className="container-lg">
           <div className="row text-center">
-            <div className="col-md-12 mx-auto">
+            {/* <div className="col-md-12 mx-auto">
               <div className="mb40">
                 <h1 className="text-center minter-header">
                   <img
@@ -80,7 +80,7 @@ export const InfoAndTvl: React.FC<Props> = ({}) => {
                   </div>
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

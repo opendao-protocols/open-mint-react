@@ -121,14 +121,14 @@ export const Header: React.FC<Props> = ({}) => {
   return (
     <header style={{ paddingTop: "2.5em", paddingBottom: "3.5em" }}>
       <div className="toolbar" role="banner">
-        <div className="dropdown">
+        {/* <div className="dropdown">
           <a href="https://opendao.io/" target="_blank">
             <img
               src={`/assets/img/open-logo-sm.png`}
               style={{ marginLeft: "2em", maxHeight: "50px" }}
             />
           </a>
-        </div>
+        </div> */}
         <div className="spacer"></div>
         {!!networkString && (
           <div className="asset btn btn-grey-box">

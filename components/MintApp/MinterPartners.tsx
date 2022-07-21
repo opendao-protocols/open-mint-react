@@ -73,7 +73,7 @@ export const MinterPartners: React.FC<Props> = ({}) => {
       <div className="mb40">
         <div className="row text-left">
           <div className="col-md-10 offset-md-1">
-            <h3 className="mb-3">Minter Partners</h3>
+            {/* <h3 className="mb-3">Minter Partners</h3> */}
             <div className="row minter-partners">
               {vaultLists.map((vault, i) => (
                 <div className="col-6 col-sm-3 col-lg-2 mb-2" key={i}>

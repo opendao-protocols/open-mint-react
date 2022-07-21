@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { Footer } from "../Common/Footer";
+// import { Footer } from "../Common/Footer";
 // import { Header } from "../Common/Header1";
 import AppContext from "../utils/AppContext";
 import { MinterPartners } from "./MinterPartners";
@@ -50,7 +50,7 @@ export const MintApp: React.FC<Props> = ({}) => {
           <InfoAndTvl />
           <MinterPartners />
           {/* <TxnSection /> */}
-          <Footer />
+          {/* <Footer /> */}
         </>
       )}
     </>

@@ -148,8 +148,8 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
     let obj = {
       ...dataObj,
     };
-    obj["subtabType"] = "mint";
-    obj["viewFarmType"] = "mint";
+    obj["subtabType"] = "borrow";
+    obj["viewFarmType"] = "borrow";
     setDataObj(obj);
   };
 
@@ -248,8 +248,8 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
       case "withdraw":
         obj["viewFarmType"] = "withdraw";
         break;
-      case "mint":
-        obj["viewFarmType"] = "mint";
+      case "borrow":
+        obj["viewFarmType"] = "borrow";
         break;
       case "repay":
         obj["viewFarmType"] = "repay";
@@ -477,7 +477,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
               <div className="vault__head-label font-weight-bold">BALANCE</div>
             </div>
             <div className="col-md-3 my-auto">
-              <div className="vault__head-label font-weight-bold">MINT APY</div>
+              <div className="vault__head-label font-weight-bold">BORROW APY</div>
             </div>
             <div className="col-md-3 my-auto">
               <div className="vault__head-label font-weight-bold">LEND APY</div>
@@ -571,11 +571,11 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                             <div className="px-3 py-2">
                               <Button
                                 className={`btn btn-lg btn-tab btn-dark-ctm btn-block ${
-                                  dataObj.subtabType === "mint" ? "active" : ""
+                                  dataObj.subtabType === "borrow" ? "active" : ""
                                 }`}
                                 onClick={() => viewMintTab()}
                               >
-                                Mint {lendingMarketData.underlyingSymbol}
+                                Borrow {lendingMarketData.underlyingSymbol}
                               </Button>
                             </div>
                           </div>
@@ -626,17 +626,17 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                           </div>
                         </div>
                       )}
-                      {dataObj.subtabType === "mint" && (
+                      {dataObj.subtabType === "borrow" && (
                         <div className="row">
                           <div className="col-6" style={{ padding: 0 }}>
                             <div className="pl-3 pr-2">
                               <button
                                 className={`btn btn-lg btn-sub-tab btn-subtab-darker-ctm btn-block ${
-                                  dataObj.viewFarmType == "mint" ? "active" : ""
+                                  dataObj.viewFarmType == "borrow" ? "active" : ""
                                 }`}
-                                onClick={() => viewFarmType("mint")}
+                                onClick={() => viewFarmType("borrow")}
                               >
-                                Mint
+                                Borrow
                               </button>
                             </div>
                           </div>
@@ -766,7 +766,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                                 </Button>
                               </div>
                             )}
-                            {dataObj.viewFarmType === "mint" && (
+                            {dataObj.viewFarmType === "borrow" && (
                               <div className="tab-spacer">
                                 <Input
                                   type="text"
@@ -936,7 +936,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                       </div>
                     )}
 
-                    {dataObj.subtabType === "mint" && (
+                    {dataObj.subtabType === "borrow" && (
                       <div className="row">
                         <div className="col-md-12">
                           <div className="calculation">
@@ -1015,7 +1015,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                         </div>
                       )}
 
-                      {dataObj.viewFarmType === "mint" && isEnabledLend && (
+                      {dataObj.viewFarmType === "borrow" && isEnabledLend && (
                         <div>
                           <Button
                             className="btn btn-subtab-darker-ctm btn-block activebtn-brand"
@@ -1026,7 +1026,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                         </div>
                       )}
 
-                      {dataObj.viewFarmType === "mint" && !isEnabledLend && (
+                      {dataObj.viewFarmType === "borrow" && !isEnabledLend && (
                         <div>
                           <Button
                             className="btn btn-subtab-darker-ctm btn-block active"
@@ -1192,7 +1192,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                         </div>
                       )}
 
-                      {dataObj.subtabType === "mint" && (
+                      {dataObj.subtabType === "borrow" && (
                         <div className="mt20 font-weight-light">
                           {/* {marketData.underlyingSymbol !== "puffLINA" &&
                             marketData.underlyingSymbol !== "puffCake" && 
@@ -1571,7 +1571,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                     <div className="col-md-12">
                       <div className="progress-bar--container">
                         <label className="mr-1" style={{ fontWeight: 400 }}>
-                          Mint&nbsp;Limit&nbsp;
+                          Borrow&nbsp;Limit&nbsp;
                         </label>
                         
                         <Progress percent={lendingUserMarketData.percentOfLimit} status="success" />
@@ -1666,7 +1666,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                     </div> */}
                     <div className="calculation py-1">
                       <span className="">
-                        {lendingMarketData.underlyingSymbol} Minted{" "}
+                        {lendingMarketData.underlyingSymbol} Borrowed{" "}
                         <sup>
                           <span
                             className="step"
@@ -1692,7 +1692,7 @@ export const TxnSection: React.FC<Props> = (props: Props) => {
                     </div>
                     <div className="calculation py-1">
                       <span className="">
-                        Available to Mint{" "}
+                        Available to Borrow{" "}
                         <sup>
                           <span
                             className="step"
